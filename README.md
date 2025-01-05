@@ -4,7 +4,7 @@ PingyPongy is an application for tracking Ping Pong scores, integrated with Slac
 
 ## Core Features
 
-1. Match Recording
+### Match Recording
 
 **Description:** Record a match result by specifying the players and the score in each set.
 
@@ -27,7 +27,7 @@ Match recorded successfuly:
 🎉 Winner: @marc (2-1 in sets)
 ```
 
-2. Leaderboard
+### Leaderboard
 
 **Description:** Display the current leaderboard.
 
@@ -45,7 +45,7 @@ Rank | Player   | Won | Lost | Played | Win Ratio
 4    | Alice    | 1   | 5    | 6      | 16.67%
 ```
 
-3. Player Stats
+### Player Stats
 
 **Description:** View individual player stats like win/loss ratio, matches won/lost, etc.
 
