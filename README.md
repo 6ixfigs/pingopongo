@@ -37,12 +37,12 @@ Match recorded successfuly:
 
 ```
 🏓 Current Leaderboard:
-Rank | Player   | Won | Lost | Played | Win Ratio
+Rank | Player   | Won | Lost | Drawn | Played | Win Ratio
 -------------------------------------------------
-1    | John     | 5   | 1    | 6      | 83.33%
-2    | Jane     | 4   | 2    | 6      | 66.67%
-3    | Bob      | 3   | 3    | 6      | 50.00%
-4    | Alice    | 1   | 5    | 6      | 16.67%
+1    | John     | 5   | 1    | 0     | 6      | 83.33%
+2    | Jane     | 4   | 2    | 0     | 6      | 66.67%
+3    | Bob      | 3   | 3    | 0     | 6      | 50.00%
+4    | Alice    | 1   | 5    | 0     | 6      | 16.67%
 ```
 
 ### Player Stats
