@@ -110,7 +110,7 @@ func (s *Server) handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
-	// if user was already in the table, update it's games and sets won/lost
+	// if user was already in the table, update its games and sets won/lost
 	queryInsertUpdateUser := `
 		INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -143,6 +143,7 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 
 	gameResult := getGameResult(firstPlayerSetsWon, secondPlayerSetsWon)
 
+	// Execute query for first player
 	_, err := s.db.Exec(queryInsertUpdateUser, username,
 		gameResult.firstPlayerGamesWon,
 		gameResult.firstPlayerGamesLost,
@@ -151,8 +152,11 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		firstPlayerSetsLost)
 
 	if err != nil {
+		http.Error(w, "Error updating player stats", http.StatusInternalServerError)
 		return
 	}
+
+	// Execute query for second player
 	_, err = s.db.Exec(queryInsertUpdateUser, username,
 		gameResult.secondPlayerGamesWon,
 		gameResult.secondPlayerGamesLost,
@@ -161,9 +165,13 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		secondPlayerSetsLost)
 
 	if err != nil {
+		http.Error(w, "Error updating player stats", http.StatusInternalServerError)
 		return
 	}
 
+	// Send success response to Slack
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Command processed successfully!"))
 }
 
 func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
