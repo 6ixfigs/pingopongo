@@ -58,10 +58,12 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/command", s.parse)
+	s.Router.Post("/record", s.record)
+	s.Router.Post("/leaderboard", s.showLeaderboard)
+	s.Router.Post("/auth", s.handleOAuthRedirect)
 }
 
-func handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	code := r.URL.Query().Get("code")
 	if code == "" {
@@ -106,25 +108,7 @@ func handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Access Token: %s", accessToken)
 }
 
-func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
-
-	err := r.ParseForm()
-	if err != nil {
-		http.Error(w, "Failed to parse data from Slack Client.", http.StatusBadRequest)
-		return
-	}
-
-	user := strings.ReplaceAll(r.FormValue("user"), "@", "")
-	command := r.FormValue("command")
-	text := r.FormValue("text")
-
-	if strings.Compare("record", strings.ToLower(command)) == 0 {
-		s.record(user, text)
-	}
-
-}
-
-func (s *Server) record(username, commandText string) {
+func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
 	// if user was already in the table, update it's games and sets won/lost
 	queryInsertUpdateUser := `
@@ -139,7 +123,10 @@ func (s *Server) record(username, commandText string) {
 			sets_lost = sets_lost + EXCLUDED.sets_lost;
 	`
 
-	sets := strings.Split(commandText[3:], " ")
+	username := strings.ReplaceAll(r.FormValue("user"), "@", "")
+	commandText := r.FormValue("text")
+
+	sets := strings.Split(commandText[2:], " ")
 
 	firstPlayerSetsWon, firstPlayerSetsLost, secondPlayerSetsWon, secondPlayerSetsLost := 0, 0, 0, 0
 	for setNo := 0; setNo < len(sets); setNo++ {
@@ -176,6 +163,10 @@ func (s *Server) record(username, commandText string) {
 	if err != nil {
 		return
 	}
+
+}
+
+func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 }
 
