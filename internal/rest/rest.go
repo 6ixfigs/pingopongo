@@ -110,7 +110,8 @@ func (s *Server) handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) record(w http.ResponseWriter, r *http.Request) {
-	// Insert or update player stats
+	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
+	// if user was already in the table, update its games and sets won/lost
 	queryInsertUpdateUser := `
 		INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -123,8 +124,6 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 			sets_lost = sets_lost + EXCLUDED.sets_lost;
 	`
 
-	// Extract user and command text from Slack request
-	username := strings.ReplaceAll(r.FormValue("user"), "@", "")
 	commandText := r.FormValue("text")
 
 	// Split the command text into words
@@ -136,8 +135,8 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Extract player names (skip the @ symbol)
-	firstPlayer := strings.TrimPrefix(parts[0], "@")
-	secondPlayer := strings.TrimPrefix(parts[1], "@")
+	firstPlayerName := strings.TrimPrefix(parts[firstPlayer], "@")
+	secondPlayerName := strings.TrimPrefix(parts[secondPlayer], "@")
 
 	// Extract the scores
 	sets := parts[2:]
@@ -176,11 +175,10 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Determine the game result
 	gameResult := getGameResult(firstPlayerSetsWon, secondPlayerSetsWon)
 
-	// Update or insert the first player's stats
-	_, err := s.db.Exec(queryInsertUpdateUser, firstPlayer,
+	// Execute query for first player
+	_, err := s.db.Exec(queryInsertUpdateUser, firstPlayerName,
 		gameResult.firstPlayerGamesWon,
 		gameResult.firstPlayerGamesLost,
 		gameResult.firstPlayerGamesDrawn,
@@ -192,8 +190,8 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update or insert the second player's stats
-	_, err = s.db.Exec(queryInsertUpdateUser, secondPlayer,
+	// Execute query for second player
+	_, err = s.db.Exec(queryInsertUpdateUser, secondPlayerName,
 		gameResult.secondPlayerGamesWon,
 		gameResult.secondPlayerGamesLost,
 		gameResult.secondPlayerGamesDrawn,
