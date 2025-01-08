@@ -1,10 +1,14 @@
 package rest
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"strings"
 
 	"database/sql"
 	"net/http"
+	"net/url"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
@@ -29,6 +33,12 @@ type GameResults struct {
 	secondPlayerGamesDrawn int
 }
 
+const (
+	clientID     = "8148123983154.8265447105907"      // Replace with your Slack App's Client ID
+	clientSecret = "de22b4b89ff61957fdd98f48ed61ce82" // Replace with your Slack App's Client Secret
+	redirectURI  = "http://localhost:8080/auth"       // Your Redirect URL
+)
+
 func NewServer() (*Server, error) {
 	cfg, err := config.Get()
 	if err != nil {
@@ -51,6 +61,51 @@ func (s *Server) MountRoutes() {
 	s.Router.Post("/command", s.parse)
 }
 
+func handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "Missing authorization code", http.StatusBadRequest)
+		return
+	}
+
+	// Exchange the code for an access token
+	tokenURL := "https://slack.com/api/oauth.v2.access"
+	resp, err := http.PostForm(tokenURL, url.Values{
+		"code":          {code},
+		"client_id":     {clientID},
+		"client_secret": {clientSecret},
+		"redirect_uri":  {redirectURI},
+	})
+	if err != nil {
+		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
+		log.Println("Error during token exchange:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Parse the response
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		http.Error(w, "Failed to parse response", http.StatusInternalServerError)
+		log.Println("Error decoding response:", err)
+		return
+	}
+
+	// Check for errors in Slack's response
+	if !result["ok"].(bool) {
+		http.Error(w, fmt.Sprintf("Slack API error: %v", result["error"]), http.StatusBadRequest)
+		return
+	}
+
+	// Access token
+	accessToken := result["access_token"].(string)
+	fmt.Fprintf(w, "Authorization successful! Access token: %s", accessToken)
+
+	// Store the token securely (e.g., database or encrypted storage)
+	log.Printf("Access Token: %s", accessToken)
+}
+
 func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseForm()
@@ -59,7 +114,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := r.FormValue("user")
+	user := strings.ReplaceAll(r.FormValue("user"), "@", "")
 	command := r.FormValue("command")
 	text := r.FormValue("text")
 
