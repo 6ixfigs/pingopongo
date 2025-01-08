@@ -1,0 +1,40 @@
+name: pingypongy
+
+services:
+  app:
+    build: .
+    ports:
+    - "8080:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: postgres:17
+    environment:
+    - POSTGRES_DB=${DB_NAME}
+    - POSTGRES_USER=${DB_USER}
+    - POSTGRES_PASSWORD=${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - data:/var/lib/postgresql/data
+    
+  migrate:
+    image: migrate/migrate:v4.18.1
+    profiles:
+      - tools
+    volumes:
+      - ./migrations:/migrations
+    entrypoint: ["migrate", "-path", "/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}:${DB_PORT}/${DB_NAME}?sslmode=disable"]
+    command: ["up"]
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: on-failure:3
+
+volumes:
+  data:

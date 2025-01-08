@@ -2,6 +2,7 @@ package rest
 
 import (
 	"database/sql"
+	"net/http"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
@@ -9,7 +10,7 @@ import (
 )
 
 type Server struct {
-	Router *chi.Mux
+	Router chi.Router
 	db     *sql.DB
 	Config *config.Config
 }
@@ -33,8 +34,9 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	ae := NewEndpoint(s.db)
-	ae.MountHandlers()
+	s.Router.Post("/command", s.parse)
+}
 
-	s.Router.Mount("/listen/commands", ae.Router)
+func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("OK"))
 }
