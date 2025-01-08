@@ -1,15 +1,11 @@
 package rest
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
 	"database/sql"
 	"net/http"
-	"net/url"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
@@ -34,11 +30,11 @@ type GameResults struct {
 	secondPlayerGamesDrawn int
 }
 
-const (
-	clientID     = "8148123983154.8265447105907"      // Replace with your Slack App's Client ID
-	clientSecret = "de22b4b89ff61957fdd98f48ed61ce82" // Replace with your Slack App's Client Secret
-	redirectURI  = "http://localhost:8080/auth"       // Your Redirect URL
-)
+// const (
+// 	clientID     = "8148123983154.8265447105907"      // Replace with your Slack App's Client ID
+// 	clientSecret = "de22b4b89ff61957fdd98f48ed61ce82" // Replace with your Slack App's Client Secret
+// 	redirectURI  = "http://localhost:8080/auth"       // Your Redirect URL
+// )
 
 func NewServer() (*Server, error) {
 	cfg, err := config.Get()
@@ -61,65 +57,66 @@ func NewServer() (*Server, error) {
 func (s *Server) MountRoutes() {
 	s.Router.Post("/record", s.record)
 	s.Router.Post("/leaderboard", s.showLeaderboard)
-	s.Router.Post("/auth", s.handleOAuthRedirect)
+	// s.Router.Post("/auth", s.handleOAuthRedirect)
 }
 
-func (s *Server) handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
-	code := r.URL.Query().Get("code")
-	if code == "" {
-		http.Error(w, "Missing authorization code", http.StatusBadRequest)
-		return
-	}
+// func (s *Server) handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
+// 	// Parse query parameters
+// 	code := r.URL.Query().Get("code")
+// 	if code == "" {
+// 		http.Error(w, "Missing authorization code", http.StatusBadRequest)
+// 		return
+// 	}
 
-	// Exchange the code for an access token
-	tokenURL := "https://slack.com/api/oauth.v2.access"
-	resp, err := http.PostForm(tokenURL, url.Values{
-		"code":          {code},
-		"client_id":     {clientID},
-		"client_secret": {clientSecret},
-		"redirect_uri":  {redirectURI},
-	})
-	if err != nil {
-		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
-		log.Println("Error during token exchange:", err)
-		return
-	}
-	defer resp.Body.Close()
+// 	// Exchange the code for an access token
+// 	tokenURL := "https://slack.com/api/oauth.v2.access"
+// 	resp, err := http.PostForm(tokenURL, url.Values{
+// 		"code":          {code},
+// 		"client_id":     {clientID},
+// 		"client_secret": {clientSecret},
+// 		"redirect_uri":  {redirectURI},
+// 	})
+// 	if err != nil {
+// 		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
+// 		log.Println("Error during token exchange:", err)
+// 		return
+// 	}
+// 	defer resp.Body.Close()
 
-	// Parse the response
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		http.Error(w, "Failed to parse response", http.StatusInternalServerError)
-		log.Println("Error decoding response:", err)
-		return
-	}
+// 	// Parse the response
+// 	var result map[string]interface{}
+// 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+// 		http.Error(w, "Failed to parse response", http.StatusInternalServerError)
+// 		log.Println("Error decoding response:", err)
+// 		return
+// 	}
 
-	// Check for errors in Slack's response
-	if !result["ok"].(bool) {
-		http.Error(w, fmt.Sprintf("Slack API error: %v", result["error"]), http.StatusBadRequest)
-		return
-	}
+// 	// Check for errors in Slack's response
+// 	if !result["ok"].(bool) {
+// 		http.Error(w, fmt.Sprintf("Slack API error: %v", result["error"]), http.StatusBadRequest)
+// 		return
+// 	}
 
-	// Access token
-	accessToken := result["access_token"].(string)
-	fmt.Fprintf(w, "Authorization successful! Access token: %s", accessToken)
+// 	// Access token
+// 	accessToken := result["access_token"].(string)
+// 	fmt.Fprintf(w, "Authorization successful! Access token: %s", accessToken)
 
-	// Store the token securely (e.g., database or encrypted storage)
-	log.Printf("Access Token: %s", accessToken)
-}
+// 	// Store the token securely (e.g., database or encrypted storage)
+// 	log.Printf("Access Token: %s", accessToken)
+// }
 
 func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
 	// if user was already in the table, update its games and sets won/lost
+
 	queryInsertUpdateUser := `
 		INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (username)
 		DO UPDATE SET
-			games_won = EXCLUDED.games_won + $2,
-			games_lost = EXCLUDED.games_lost + $3,
-			games_drawn = EXCLUDED.games_drawn + $4,
+			games_won = games_won + EXCLUDED.games_won,
+			games_lost = games_lost + EXCLUDED.games_lost,
+			games_drawn = games_drawn + EXCLUDED.games_drawn,
 			sets_won = sets_won + EXCLUDED.sets_won,
 			sets_lost = sets_lost + EXCLUDED.sets_lost;
 	`
@@ -129,7 +126,7 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	// Split the command text into words
 	parts := strings.Fields(commandText)
 
-	if len(parts) < 4 {
+	if len(parts) < 3 {
 		http.Error(w, "Invalid command format", http.StatusBadRequest)
 		return
 	}
