@@ -85,8 +85,6 @@ func (s *Server) record(username, commandText string) {
 			sets_lost = sets_lost + EXCLUDED.sets_lost;
 	`
 
-	firstPlayerName := commandText[1]
-	secondPlayerName := commandText[2]
 	sets := strings.Split(commandText[3:], " ")
 
 	firstPlayerSetsWon, firstPlayerSetsLost, secondPlayerSetsWon, secondPlayerSetsLost := 0, 0, 0, 0
@@ -120,6 +118,10 @@ func (s *Server) record(username, commandText string) {
 		gameResult.secondPlayerGamesDrawn,
 		secondPlayerSetsWon,
 		secondPlayerSetsLost)
+
+	if err != nil {
+		return
+	}
 
 }
 
