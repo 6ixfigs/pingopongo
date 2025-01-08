@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"database/sql"
@@ -109,8 +110,7 @@ func (s *Server) handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) record(w http.ResponseWriter, r *http.Request) {
-	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
-	// if user was already in the table, update its games and sets won/lost
+	// Insert or update player stats
 	queryInsertUpdateUser := `
 		INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -123,16 +123,51 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 			sets_lost = sets_lost + EXCLUDED.sets_lost;
 	`
 
+	// Extract user and command text from Slack request
 	username := strings.ReplaceAll(r.FormValue("user"), "@", "")
 	commandText := r.FormValue("text")
 
-	sets := strings.Split(commandText[2:], " ")
+	// Split the command text into words
+	parts := strings.Fields(commandText)
 
+	if len(parts) < 4 {
+		http.Error(w, "Invalid command format", http.StatusBadRequest)
+		return
+	}
+
+	// Extract player names (skip the @ symbol)
+	firstPlayer := strings.TrimPrefix(parts[0], "@")
+	secondPlayer := strings.TrimPrefix(parts[1], "@")
+
+	// Extract the scores
+	sets := parts[2:]
+
+	// Initialize the set counters
 	firstPlayerSetsWon, firstPlayerSetsLost, secondPlayerSetsWon, secondPlayerSetsLost := 0, 0, 0, 0
-	for setNo := 0; setNo < len(sets); setNo++ {
-		score := strings.Split(sets[setNo], "-")
 
-		if score[firstPlayer] > score[secondPlayer] {
+	// Loop through sets and calculate wins/losses
+	for _, set := range sets {
+		score := strings.Split(set, "-")
+
+		if len(score) != 2 {
+			http.Error(w, "Invalid score format", http.StatusBadRequest)
+			return
+		}
+
+		firstPlayerScore, err := strconv.Atoi(score[0])
+		if err != nil {
+			http.Error(w, "Invalid score for first player", http.StatusBadRequest)
+			return
+		}
+
+		secondPlayerScore, err := strconv.Atoi(score[1])
+		if err != nil {
+			http.Error(w, "Invalid score for second player", http.StatusBadRequest)
+			return
+		}
+
+		// Determine who won the set
+		if firstPlayerScore > secondPlayerScore {
 			firstPlayerSetsWon++
 			secondPlayerSetsLost++
 		} else {
@@ -141,10 +176,11 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Determine the game result
 	gameResult := getGameResult(firstPlayerSetsWon, secondPlayerSetsWon)
 
-	// Execute query for first player
-	_, err := s.db.Exec(queryInsertUpdateUser, username,
+	// Update or insert the first player's stats
+	_, err := s.db.Exec(queryInsertUpdateUser, firstPlayer,
 		gameResult.firstPlayerGamesWon,
 		gameResult.firstPlayerGamesLost,
 		gameResult.firstPlayerGamesDrawn,
@@ -156,8 +192,8 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute query for second player
-	_, err = s.db.Exec(queryInsertUpdateUser, username,
+	// Update or insert the second player's stats
+	_, err = s.db.Exec(queryInsertUpdateUser, secondPlayer,
 		gameResult.secondPlayerGamesWon,
 		gameResult.secondPlayerGamesLost,
 		gameResult.secondPlayerGamesDrawn,
