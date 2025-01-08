@@ -8,6 +8,7 @@ services:
     depends_on:
       database:
         condition: service_healthy
+    restart: on-failure:3
 
   database:
     image: postgres:17
