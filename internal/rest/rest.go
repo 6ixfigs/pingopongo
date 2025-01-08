@@ -70,9 +70,8 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) record(username, commandText string) {
-
-	// if user already in db, do nothing
-
+	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
+	// if user was already in the table, update it's games and sets won/lost
 	queryInsertUpdateUser := `
 		INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
 		VALUES ($1, $2, $3, $4, $5, $6)
