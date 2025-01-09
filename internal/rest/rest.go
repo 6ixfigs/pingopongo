@@ -186,9 +186,17 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !firstUserExists {
-		s.doQuery(queryInsertUser, firstPlayerName, firstPlayerStats)
+		err = s.doQuery(queryInsertUser, firstPlayerName, firstPlayerStats)
+		if err != nil {
+			http.Error(w, "Error inserting player1 stats", http.StatusInternalServerError)
+			return
+		}
 	} else {
-		s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
+		err = s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
+		if err != nil {
+			http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	secondUserExists, err := s.userExists(secondPlayerName)
@@ -198,21 +206,17 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !secondUserExists {
-		s.doQuery(queryInsertUser, secondPlayerName, secondPlayerStats)
+		err = s.doQuery(queryInsertUser, secondPlayerName, secondPlayerStats)
+		if err != nil {
+			http.Error(w, "Error inserting player2 stats", http.StatusInternalServerError)
+			return
+		}
 	} else {
-		s.doQuery(queryUpdateUser, secondPlayerName, secondPlayerStats)
-	}
-
-	// Execute query for first player
-
-	if err != nil {
-		http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, "Error updating player2 stats", http.StatusInternalServerError)
-		return
+		err = s.doQuery(queryUpdateUser, secondPlayerName, secondPlayerStats)
+		if err != nil {
+			http.Error(w, "Error updating player2 stats", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Send success response to Slack
