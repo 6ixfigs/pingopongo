@@ -112,18 +112,18 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 
 	queryInsertUser := `
 	INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
-	VALUES ($1, $2, $3, $4, $5, $6)
+	VALUES ($1, $2, $3, $4, $5, $6);
 	`
 
 	queryUpdateUser := `
 	UPDATE player_stats
 	SET
-		games_won = games_won + $2
-		games_lost = games_lost + $3
-		games_drawn = games_drawn + $4
-		sets_won = sets_won + $5
+		games_won = games_won + $2,
+		games_lost = games_lost + $3,
+		games_drawn = games_drawn + $4,
+		sets_won = sets_won + $5,
 		sets_lost = sets_lost + $6
-	WHERE username = $1
+	WHERE username = $1;
 	`
 
 	commandText := r.FormValue("text")
@@ -230,21 +230,18 @@ func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) userExists(username string) (bool, error) {
 	query := `
-        SELECT username
+        SELECT COUNT(*)
         FROM player_stats
         WHERE username = $1;
     `
 
-	var exists int
-	err := s.db.QueryRow(query, username).Scan(&exists)
+	var count int
+	err := s.db.QueryRow(query, username).Scan(&count)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
 		return false, err
 	}
 
-	return true, nil
+	return count > 0, nil
 }
 
 func (s *Server) doQuery(query, username string, playerStats PlayerStats) error {
