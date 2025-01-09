@@ -203,10 +203,8 @@ func getGameResult(firstPlayerSetsWon, secondPlayerSetsWon int) (PlayerStats, Pl
 		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon}
 	case firstPlayerSetsWon < secondPlayerSetsWon:
 		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon}
-	case firstPlayerSetsWon == secondPlayerSetsWon:
-		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon}
 	default:
-		return PlayerStats{0, 0, 0, 0, 0}, PlayerStats{0, 0, 0, 0, 0}
+		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon}
 	}
 
 }
