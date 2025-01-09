@@ -56,60 +56,11 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/slack/events", s.record)
+	s.Router.Post("/slack/events", s.record) // change back to /record after development
 	s.Router.Post("/leaderboard", s.showLeaderboard)
-	// s.Router.Post("/auth", s.handleOAuthRedirect)
 }
 
-// func (s *Server) handleOAuthRedirect(w http.ResponseWriter, r *http.Request) {
-// 	// Parse query parameters
-// 	code := r.URL.Query().Get("code")
-// 	if code == "" {
-// 		http.Error(w, "Missing authorization code", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	// Exchange the code for an access token
-// 	tokenURL := "https://slack.com/api/oauth.v2.access"
-// 	resp, err := http.PostForm(tokenURL, url.Values{
-// 		"code":          {code},
-// 		"client_id":     {clientID},
-// 		"client_secret": {clientSecret},
-// 		"redirect_uri":  {redirectURI},
-// 	})
-// 	if err != nil {
-// 		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
-// 		log.Println("Error during token exchange:", err)
-// 		return
-// 	}
-// 	defer resp.Body.Close()
-
-// 	// Parse the response
-// 	var result map[string]interface{}
-// 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-// 		http.Error(w, "Failed to parse response", http.StatusInternalServerError)
-// 		log.Println("Error decoding response:", err)
-// 		return
-// 	}
-
-// 	// Check for errors in Slack's response
-// 	if !result["ok"].(bool) {
-// 		http.Error(w, fmt.Sprintf("Slack API error: %v", result["error"]), http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	// Access token
-// 	accessToken := result["access_token"].(string)
-// 	fmt.Fprintf(w, "Authorization successful! Access token: %s", accessToken)
-
-// 	// Store the token securely (e.g., database or encrypted storage)
-// 	log.Printf("Access Token: %s", accessToken)
-// }
-
 func (s *Server) record(w http.ResponseWriter, r *http.Request) {
-	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
-	// if user was already in the table, update its games and sets won/lost
-
 	queryInsertUser := `
 	INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
 	VALUES ($1, $2, $3, $4, $5, $6);
@@ -128,7 +79,6 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 
 	commandText := r.FormValue("text")
 
-	// Split the command text into words
 	parts := strings.Fields(commandText)
 
 	if len(parts) < 3 {
@@ -136,17 +86,12 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract player names (skip the @ symbol)
 	firstPlayerName := strings.TrimPrefix(parts[firstPlayer], "@")
 	secondPlayerName := strings.TrimPrefix(parts[secondPlayer], "@")
 
-	// Extract the scores
 	sets := parts[2:]
-
-	// Initialize the set counters
 	firstPlayerSetsWon, secondPlayerSetsWon := 0, 0
 
-	// Loop through sets and calculate wins/losses
 	for _, set := range sets {
 		score := strings.Split(set, "-")
 
@@ -167,7 +112,6 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Determine who won the set
 		if firstPlayerScore > secondPlayerScore {
 			firstPlayerSetsWon++
 		} else {
@@ -217,7 +161,6 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Send success response to Slack
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Command processed successfully!"))
 }
