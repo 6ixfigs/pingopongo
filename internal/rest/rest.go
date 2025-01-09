@@ -144,7 +144,7 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	sets := parts[2:]
 
 	// Initialize the set counters
-	firstPlayerSetsWon, firstPlayerSetsLost, secondPlayerSetsWon, secondPlayerSetsLost := 0, 0, 0, 0
+	firstPlayerSetsWon, secondPlayerSetsWon := 0, 0
 
 	// Loop through sets and calculate wins/losses
 	for _, set := range sets {
@@ -170,9 +170,7 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		// Determine who won the set
 		if firstPlayerScore > secondPlayerScore {
 			firstPlayerSetsWon++
-			secondPlayerSetsLost++
 		} else {
-			firstPlayerSetsLost++
 			secondPlayerSetsWon++
 		}
 	}
@@ -262,8 +260,10 @@ func getGameResult(firstPlayerSetsWon, secondPlayerSetsWon int) (PlayerStats, Pl
 		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon}
 	case firstPlayerSetsWon < secondPlayerSetsWon:
 		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon}
-	default:
+	case firstPlayerSetsWon == secondPlayerSetsWon:
 		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon}
+	default:
+		return PlayerStats{0, 0, 0, 0, 0}, PlayerStats{0, 0, 0, 0, 0}
 	}
 
 }
