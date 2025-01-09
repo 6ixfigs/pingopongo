@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -20,14 +21,12 @@ type Server struct {
 	db     *sql.DB
 	Config *config.Config
 }
-
-type GameResults struct {
-	firstPlayerGamesWon    int
-	firstPlayerGamesLost   int
-	firstPlayerGamesDrawn  int
-	secondPlayerGamesWon   int
-	secondPlayerGamesLost  int
-	secondPlayerGamesDrawn int
+type PlayerStats struct {
+	gamesWon   int
+	gamesLost  int
+	gamesDrawn int
+	setsWon    int
+	setsLost   int
 }
 
 // const (
@@ -47,6 +46,8 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
+	log.Printf("Connected to DB: %s\n", cfg.DBConn)
+
 	return &Server{
 		Router: chi.NewRouter(),
 		db:     db,
@@ -55,7 +56,7 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/record", s.record)
+	s.Router.Post("/slack/events", s.record)
 	s.Router.Post("/leaderboard", s.showLeaderboard)
 	// s.Router.Post("/auth", s.handleOAuthRedirect)
 }
@@ -109,16 +110,20 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	// insert player into table if it didn't previously exist, (default games and sets won/lost should be 0)
 	// if user was already in the table, update its games and sets won/lost
 
-	queryInsertUpdateUser := `
-		INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (username)
-		DO UPDATE SET
-			games_won = games_won + EXCLUDED.games_won,
-			games_lost = games_lost + EXCLUDED.games_lost,
-			games_drawn = games_drawn + EXCLUDED.games_drawn,
-			sets_won = sets_won + EXCLUDED.sets_won,
-			sets_lost = sets_lost + EXCLUDED.sets_lost;
+	queryInsertUser := `
+	INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	`
+
+	queryUpdateUser := `
+	UPDATE player_stats
+	SET
+		games_won = games_won + $2
+		games_lost = games_lost + $3
+		games_drawn = games_drawn + $4
+		sets_won = sets_won + $5
+		sets_lost = sets_lost + $6
+	WHERE username = $1
 	`
 
 	commandText := r.FormValue("text")
@@ -150,13 +155,13 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		firstPlayerScore, err := strconv.Atoi(score[0])
+		firstPlayerScore, err := strconv.Atoi(score[firstPlayer])
 		if err != nil {
 			http.Error(w, "Invalid score for first player", http.StatusBadRequest)
 			return
 		}
 
-		secondPlayerScore, err := strconv.Atoi(score[1])
+		secondPlayerScore, err := strconv.Atoi(score[secondPlayer])
 		if err != nil {
 			http.Error(w, "Invalid score for second player", http.StatusBadRequest)
 			return
@@ -172,31 +177,41 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	gameResult := getGameResult(firstPlayerSetsWon, secondPlayerSetsWon)
+	firstPlayerStats, secondPlayerStats := getGameResult(firstPlayerSetsWon, secondPlayerSetsWon)
 
-	// Execute query for first player
-	_, err := s.db.Exec(queryInsertUpdateUser, firstPlayerName,
-		gameResult.firstPlayerGamesWon,
-		gameResult.firstPlayerGamesLost,
-		gameResult.firstPlayerGamesDrawn,
-		firstPlayerSetsWon,
-		firstPlayerSetsLost)
-
+	firstUserExists, err := s.userExists(firstPlayerName)
 	if err != nil {
-		http.Error(w, "Error updating player stats", http.StatusInternalServerError)
+		http.Error(w, "Error checking if player1 exists", http.StatusInternalServerError)
 		return
 	}
 
-	// Execute query for second player
-	_, err = s.db.Exec(queryInsertUpdateUser, secondPlayerName,
-		gameResult.secondPlayerGamesWon,
-		gameResult.secondPlayerGamesLost,
-		gameResult.secondPlayerGamesDrawn,
-		secondPlayerSetsWon,
-		secondPlayerSetsLost)
+	if !firstUserExists {
+		s.doQuery(queryInsertUser, firstPlayerName, firstPlayerStats)
+	} else {
+		s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
+	}
+
+	secondUserExists, err := s.userExists(secondPlayerName)
+	if err != nil {
+		http.Error(w, "Error checking if player2 exists", http.StatusInternalServerError)
+		return
+	}
+
+	if !secondUserExists {
+		s.doQuery(queryInsertUser, secondPlayerName, secondPlayerStats)
+	} else {
+		s.doQuery(queryUpdateUser, secondPlayerName, secondPlayerStats)
+	}
+
+	// Execute query for first player
 
 	if err != nil {
-		http.Error(w, "Error updating player stats", http.StatusInternalServerError)
+		http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, "Error updating player2 stats", http.StatusInternalServerError)
 		return
 	}
 
@@ -209,14 +224,45 @@ func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getGameResult(firstPlayerSets, secondPlayerSets int) GameResults {
+func (s *Server) userExists(username string) (bool, error) {
+	query := `
+        SELECT username
+        FROM player_stats
+        WHERE username = $1;
+    `
+
+	var exists int
+	err := s.db.QueryRow(query, username).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (s *Server) doQuery(query, username string, playerStats PlayerStats) error {
+
+	_, err := s.db.Exec(query, username,
+		playerStats.gamesWon,
+		playerStats.gamesLost,
+		playerStats.gamesDrawn,
+		playerStats.setsWon,
+		playerStats.setsLost)
+
+	return err
+}
+
+func getGameResult(firstPlayerSetsWon, secondPlayerSetsWon int) (PlayerStats, PlayerStats) {
 	switch {
-	case firstPlayerSets > secondPlayerSets:
-		return GameResults{1, 0, 0, 0, 1, 0}
-	case firstPlayerSets < secondPlayerSets:
-		return GameResults{0, 1, 0, 1, 0, 0}
+	case firstPlayerSetsWon > secondPlayerSetsWon:
+		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon}
+	case firstPlayerSetsWon < secondPlayerSetsWon:
+		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon}
 	default:
-		return GameResults{0, 0, 1, 0, 0, 1}
+		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon}
 	}
 
 }
