@@ -30,7 +30,7 @@ services:
       - tools
     volumes:
       - ./migrations:/migrations
-    entrypoint: ["migrate", "-path", "/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}:${DB_PORT}/${DB_NAME}?sslmode=disable"]
+    entrypoint: ["migrate", "-path", "/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"]
     command: ["up"]
     depends_on:
       database:
