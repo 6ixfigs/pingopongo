@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -27,6 +28,8 @@ type PlayerStats struct {
 	gamesDrawn int
 	setsWon    int
 	setsLost   int
+	pointsWon  int
+	pointsLost
 }
 
 func NewServer() (*Server, error) {
@@ -82,38 +85,10 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	secondPlayerName := strings.TrimPrefix(parts[secondPlayer], "@")
 
 	sets := parts[2:]
-	firstPlayerSetsWon, secondPlayerSetsWon := 0, 0
 
-	for _, set := range sets {
-		score := strings.Split(set, "-")
+	firstPlayerStats, secondPlayerStats, err := getGameResult(sets)
+	err = s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
 
-		if len(score) != 2 {
-			http.Error(w, "Invalid score format", http.StatusBadRequest)
-			return
-		}
-
-		firstPlayerScore, err := strconv.Atoi(score[firstPlayer])
-		if err != nil {
-			http.Error(w, "Invalid score for first player", http.StatusBadRequest)
-			return
-		}
-
-		secondPlayerScore, err := strconv.Atoi(score[secondPlayer])
-		if err != nil {
-			http.Error(w, "Invalid score for second player", http.StatusBadRequest)
-			return
-		}
-
-		if firstPlayerScore > secondPlayerScore {
-			firstPlayerSetsWon++
-		} else {
-			secondPlayerSetsWon++
-		}
-	}
-
-	firstPlayerStats, secondPlayerStats := getGameResult(firstPlayerSetsWon, secondPlayerSetsWon)
-
-	err := s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
 	if err != nil {
 		http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
 		return
@@ -145,14 +120,47 @@ func (s *Server) doQuery(query, slackID string, playerStats PlayerStats) error {
 	return err
 }
 
-func getGameResult(firstPlayerSetsWon, secondPlayerSetsWon int) (PlayerStats, PlayerStats) {
+func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
+	firstPlayerSetsWon, secondPlayerSetsWon := 0, 0
+	firstPlayerScore, secondPlayerScore := 0, 0
+
+	for _, set := range sets {
+		score := strings.Split(set, "-")
+
+		if len(score) != 2 {
+			return PlayerStats{}, PlayerStats{}, fmt.Errorf("Invalid set format: %s", set)
+		}
+
+		firstPlayerScore, err := strconv.Atoi(score[firstPlayer])
+		if err != nil {
+			return PlayerStats{}, PlayerStats{}, fmt.Errorf("Invalid player1 score format!")
+		}
+
+		secondPlayerScore, err := strconv.Atoi(score[secondPlayer])
+		if err != nil {
+			return PlayerStats{}, PlayerStats{}, fmt.Errorf("Invalid player2 score format!")
+		}
+
+		if firstPlayerScore > secondPlayerScore {
+			firstPlayerSetsWon++
+		} else {
+			secondPlayerSetsWon++
+		}
+	}
+
 	switch {
 	case firstPlayerSetsWon > secondPlayerSetsWon:
-		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon}
+		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon, firstPlayerScore, secondPlayerScore},
+			PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon, secondPlayerScore, firstPlayerScore},
+			nil
 	case firstPlayerSetsWon < secondPlayerSetsWon:
-		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon}
+		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon, firstPlayerScore, secondPlayerScore},
+			PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon, secondPlayerScore, firstPlayerScore},
+			nil
 	default:
-		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon}, PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon}
+		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon, firstPlayerScore, secondPlayerScore},
+			PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon, secondPlayerScore, firstPlayerScore},
+			nil
 	}
 
 }
