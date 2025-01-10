@@ -33,7 +33,6 @@ type PlayerStats struct {
 }
 
 type RecordCommand struct {
-	slackID     string
 	channelID   string
 	commandText []string
 }
@@ -59,7 +58,7 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/commands", s.parse)
+	s.Router.Post("/slack/events", s.parse)
 	s.Router.Post("/leaderboard", s.showLeaderboard)
 }
 
@@ -68,16 +67,19 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	commandText := r.FormValue("text")
 	commandParts := strings.Fields(commandText)
 
-	slackID := r.FormValue("user_id")
+	// slackID := r.FormValue("user_id")
 	channelID := r.FormValue("channel_id")
+	channelID = strings.TrimPrefix(channelID, "<#")
+	channelID = strings.TrimSuffix(channelID, ">")
 
 	switch strings.ToLower(commandName) {
-	case "record":
-		recordCommand := RecordCommand{slackID, channelID, commandParts}
+	case "/record":
+		recordCommand := RecordCommand{channelID, commandParts}
 		s.record(w, recordCommand)
-	case "leaderboard":
+	case "/leaderboard":
 		s.showLeaderboard(w, r)
 	default:
+
 	}
 
 }
@@ -87,14 +89,14 @@ func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 	queryUpdateUser := `
 	UPDATE player_stats
 	SET
-		GamesWon 	= GamesWon + $2,
-		GamesLost 	= GamesLost + $3,
-		GamesDrawn	= GamesDrawn + $4,
-		SetsWon 	= SetsWon + $5,
-		SetsLost 	= SetsLost + $6
-		PointsWon 	= PointsWon + $7
-		PointsLost 	= PointsLost + $8
-	WHERE SlackID 	= $1;
+		gameswon 	= gameswon + $3,
+		gameslost 	= gameslost + $4,
+		gamesdrawn	= gamesdrawn + $5,
+		setswon		= setswon + $6,
+		setslost 	= setslost + $7,
+		pointswon 	= pointswon + $8,
+		pointslost 	= pointslost + $9
+	WHERE slackid 	= $1 AND channelid = $2;
 	`
 
 	if len(recordCommand.commandText) < 3 {
@@ -102,24 +104,30 @@ func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 		return
 	}
 
-	firstPlayerName := strings.TrimPrefix(recordCommand.commandText[firstPlayer], "@")
-	secondPlayerName := strings.TrimPrefix(recordCommand.commandText[secondPlayer], "@")
+	firstPlayerSlackID, secondPlayerSlackID := recordCommand.commandText[0], recordCommand.commandText[1]
+
+	firstPlayerSlackID = strings.TrimPrefix(firstPlayerSlackID, "<@")
+	firstPlayerSlackID = strings.Split(strings.TrimSuffix(firstPlayerSlackID, ">"), "|")[0]
+
+	secondPlayerSlackID = strings.TrimPrefix(secondPlayerSlackID, "<@")
+	secondPlayerSlackID = strings.Split(strings.TrimSuffix(secondPlayerSlackID, ">"), "|")[0]
 
 	sets := recordCommand.commandText[2:]
 
 	firstPlayerStats, secondPlayerStats, err := getGameResult(sets)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	err = s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
+	err = s.doQuery(queryUpdateUser, firstPlayerSlackID, recordCommand.channelID, firstPlayerStats)
 
 	if err != nil {
 		http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
 		return
 	}
 
-	err = s.doQuery(queryUpdateUser, secondPlayerName, secondPlayerStats)
+	err = s.doQuery(queryUpdateUser, secondPlayerSlackID, recordCommand.channelID, secondPlayerStats)
 	if err != nil {
 		http.Error(w, "Error updating player2 stats", http.StatusInternalServerError)
 		return
@@ -133,14 +141,16 @@ func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Server) doQuery(query, slackID string, playerStats PlayerStats) error {
+func (s *Server) doQuery(query, slackID, channelID string, playerStats PlayerStats) error {
 
-	_, err := s.db.Exec(query, slackID,
+	_, err := s.db.Exec(query, slackID, channelID,
 		playerStats.gamesWon,
 		playerStats.gamesLost,
 		playerStats.gamesDrawn,
 		playerStats.setsWon,
-		playerStats.setsLost)
+		playerStats.setsLost,
+		playerStats.pointsWon,
+		playerStats.pointsLost)
 
 	return err
 }
