@@ -157,7 +157,7 @@ func (s *Server) doQuery(query, slackID, channelID string, playerStats PlayerSta
 
 func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
 	firstPlayerSetsWon, secondPlayerSetsWon := 0, 0
-	firstPlayerScore, secondPlayerScore := 0, 0
+	totalFirstPlayerScore, totalSecondPlayerScore := 0, 0
 
 	for _, set := range sets {
 		score := strings.Split(set, "-")
@@ -170,31 +170,33 @@ func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
 		if err != nil {
 			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid player1 score format")
 		}
+		totalFirstPlayerScore += firstPlayerScore
 
 		secondPlayerScore, err := strconv.Atoi(score[secondPlayer])
 		if err != nil {
 			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid player2 score format")
 		}
+		totalSecondPlayerScore += secondPlayerScore
 
 		if firstPlayerScore > secondPlayerScore {
 			firstPlayerSetsWon++
-		} else {
+		} else if firstPlayerScore < secondPlayerScore {
 			secondPlayerSetsWon++
 		}
 	}
 
 	switch {
 	case firstPlayerSetsWon > secondPlayerSetsWon:
-		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon, firstPlayerScore, secondPlayerScore},
-			PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon, secondPlayerScore, firstPlayerScore},
+		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
+			PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
 			nil
 	case firstPlayerSetsWon < secondPlayerSetsWon:
-		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon, firstPlayerScore, secondPlayerScore},
-			PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon, secondPlayerScore, firstPlayerScore},
+		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
+			PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
 			nil
 	default:
-		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon, firstPlayerScore, secondPlayerScore},
-			PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon, secondPlayerScore, firstPlayerScore},
+		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
+			PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
 			nil
 	}
 
