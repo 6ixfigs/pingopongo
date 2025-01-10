@@ -64,7 +64,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	switch strings.ToLower(commandName) {
 	case "record":
-		s.record(w, r, commandParts)
+		s.record(w, commandParts)
 	case "leaderboard":
 		s.showLeaderboard(w, r)
 	default:
@@ -72,7 +72,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Server) record(w http.ResponseWriter, r *http.Request, commandParts []string) {
+func (s *Server) record(w http.ResponseWriter, commandParts []string) {
 
 	queryUpdateUser := `
 	UPDATE player_stats
@@ -98,6 +98,10 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request, commandParts []s
 	sets := commandParts[2:]
 
 	firstPlayerStats, secondPlayerStats, err := getGameResult(sets)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
 	err = s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
 
 	if err != nil {
@@ -139,17 +143,17 @@ func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
 		score := strings.Split(set, "-")
 
 		if len(score) != 2 {
-			return PlayerStats{}, PlayerStats{}, fmt.Errorf("Invalid set format: %s", set)
+			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid set format: %s", set)
 		}
 
 		firstPlayerScore, err := strconv.Atoi(score[firstPlayer])
 		if err != nil {
-			return PlayerStats{}, PlayerStats{}, fmt.Errorf("Invalid player1 score format!")
+			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid player1 score format")
 		}
 
 		secondPlayerScore, err := strconv.Atoi(score[secondPlayer])
 		if err != nil {
-			return PlayerStats{}, PlayerStats{}, fmt.Errorf("Invalid player2 score format!")
+			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid player2 score format")
 		}
 
 		if firstPlayerScore > secondPlayerScore {
