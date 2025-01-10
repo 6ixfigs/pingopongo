@@ -2,11 +2,14 @@ package rest
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/go-chi/chi/v5"
+	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 type Server struct {
@@ -60,16 +63,71 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	switch request.command {
 	case "/leaderboard":
-		leaderboard(w, request)
+		s.leaderboard(w, request)
 	default:
 		http.Error(w, "Received invalid command", http.StatusOK)
 	}
 }
 
-func leaderboard(w http.ResponseWriter, r *SlackRequest) {
-	// fetch all records where channel_id=r.channel_id
-	// use conversations.members API to map user_ids to user names
-	// format the leaderboard
-	// write response and make it in_channel (visible to all in channel)
-	w.Write([]byte("OK from leaderboard"))
+func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
+	query := `
+		SELECT user_id, matches_won, matches_drawn, matches_lost
+		FROM players
+		WHERE channel_id = $1
+		ORDER BY matches_won
+		LIMIT 15
+	`
+
+	rows, err := s.db.Query(query, r.channelID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var players []Player
+
+	for rows.Next() {
+		var player Player
+		err = rows.Scan(
+			&player.userID,
+			&player.matchesWon,
+			&player.matchesDrawn,
+			&player.matchesLost,
+		)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		players = append(players, player)
+	}
+
+	if err = rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"#", "Player", "W", "D", "L", "P", "Win Ratio"})
+	for rank, player := range players {
+		matchesPlayed := player.matchesWon + player.matchesDrawn + player.matchesLost
+		t.AppendRow(table.Row{
+			rank + 1,
+			fmt.Sprintf("<@%s>", player.userID),
+			player.matchesWon,
+			player.matchesDrawn,
+			player.matchesLost,
+			matchesPlayed,
+			fmt.Sprintf("%.2f", float64(player.matchesWon)/float64(matchesPlayed)*100),
+		})
+	}
+	leaderboard := t.Render()
+
+	response, err := json.Marshal(&SlackResponse{"in_channel", leaderboard})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
 }
