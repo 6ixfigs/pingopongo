@@ -29,7 +29,7 @@ type PlayerStats struct {
 	setsWon    int
 	setsLost   int
 	pointsWon  int
-	pointsLost
+	pointsLost int
 }
 
 func NewServer() (*Server, error) {
@@ -53,11 +53,26 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/slack/events", s.record) // change back to /record after development
+	s.Router.Post("/commands", s.parse)
 	s.Router.Post("/leaderboard", s.showLeaderboard)
 }
 
-func (s *Server) record(w http.ResponseWriter, r *http.Request) {
+func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
+	commandName := r.FormValue("command")
+	commandText := r.FormValue("text")
+	commandParts := strings.Fields(commandText)
+
+	switch strings.ToLower(commandName) {
+	case "record":
+		s.record(w, r, commandParts)
+	case "leaderboard":
+		s.showLeaderboard(w, r)
+	default:
+	}
+
+}
+
+func (s *Server) record(w http.ResponseWriter, r *http.Request, commandParts []string) {
 
 	queryUpdateUser := `
 	UPDATE player_stats
@@ -72,19 +87,15 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 	WHERE SlackID 	= $1;
 	`
 
-	commandText := r.FormValue("text")
-
-	parts := strings.Fields(commandText)
-
-	if len(parts) < 3 {
+	if len(commandParts) < 3 {
 		http.Error(w, "Invalid command format", http.StatusBadRequest)
 		return
 	}
 
-	firstPlayerName := strings.TrimPrefix(parts[firstPlayer], "@")
-	secondPlayerName := strings.TrimPrefix(parts[secondPlayer], "@")
+	firstPlayerName := strings.TrimPrefix(commandParts[firstPlayer], "@")
+	secondPlayerName := strings.TrimPrefix(commandParts[secondPlayer], "@")
 
-	sets := parts[2:]
+	sets := commandParts[2:]
 
 	firstPlayerStats, secondPlayerStats, err := getGameResult(sets)
 	err = s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
