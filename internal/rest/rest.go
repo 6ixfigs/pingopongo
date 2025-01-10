@@ -29,12 +29,6 @@ type PlayerStats struct {
 	setsLost   int
 }
 
-// const (
-// 	clientID     = "8148123983154.8265447105907"      // Replace with your Slack App's Client ID
-// 	clientSecret = "de22b4b89ff61957fdd98f48ed61ce82" // Replace with your Slack App's Client Secret
-// 	redirectURI  = "http://localhost:8080/auth"       // Your Redirect URL
-// )
-
 func NewServer() (*Server, error) {
 	cfg, err := config.Get()
 	if err != nil {
@@ -61,20 +55,18 @@ func (s *Server) MountRoutes() {
 }
 
 func (s *Server) record(w http.ResponseWriter, r *http.Request) {
-	queryInsertUser := `
-	INSERT INTO player_stats (username, games_won, games_lost, games_drawn, sets_won, sets_lost)
-	VALUES ($1, $2, $3, $4, $5, $6);
-	`
 
 	queryUpdateUser := `
 	UPDATE player_stats
 	SET
-		games_won = games_won + $2,
-		games_lost = games_lost + $3,
-		games_drawn = games_drawn + $4,
-		sets_won = sets_won + $5,
-		sets_lost = sets_lost + $6
-	WHERE username = $1;
+		GamesWon 	= GamesWon + $2,
+		GamesLost 	= GamesLost + $3,
+		GamesDrawn	= GamesDrawn + $4,
+		SetsWon 	= SetsWon + $5,
+		SetsLost 	= SetsLost + $6
+		PointsWon 	= PointsWon + $7
+		PointsLost 	= PointsLost + $8
+	WHERE SlackID 	= $1;
 	`
 
 	commandText := r.FormValue("text")
@@ -121,44 +113,16 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request) {
 
 	firstPlayerStats, secondPlayerStats := getGameResult(firstPlayerSetsWon, secondPlayerSetsWon)
 
-	firstUserExists, err := s.userExists(firstPlayerName)
+	err := s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
 	if err != nil {
-		http.Error(w, "Error checking if player1 exists", http.StatusInternalServerError)
+		http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
 		return
 	}
 
-	if !firstUserExists {
-		err = s.doQuery(queryInsertUser, firstPlayerName, firstPlayerStats)
-		if err != nil {
-			http.Error(w, "Error inserting player1 stats", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		err = s.doQuery(queryUpdateUser, firstPlayerName, firstPlayerStats)
-		if err != nil {
-			http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	secondUserExists, err := s.userExists(secondPlayerName)
+	err = s.doQuery(queryUpdateUser, secondPlayerName, secondPlayerStats)
 	if err != nil {
-		http.Error(w, "Error checking if player2 exists", http.StatusInternalServerError)
+		http.Error(w, "Error updating player2 stats", http.StatusInternalServerError)
 		return
-	}
-
-	if !secondUserExists {
-		err = s.doQuery(queryInsertUser, secondPlayerName, secondPlayerStats)
-		if err != nil {
-			http.Error(w, "Error inserting player2 stats", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		err = s.doQuery(queryUpdateUser, secondPlayerName, secondPlayerStats)
-		if err != nil {
-			http.Error(w, "Error updating player2 stats", http.StatusInternalServerError)
-			return
-		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -169,25 +133,9 @@ func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Server) userExists(username string) (bool, error) {
-	query := `
-        SELECT COUNT(*)
-        FROM player_stats
-        WHERE username = $1;
-    `
+func (s *Server) doQuery(query, slackID string, playerStats PlayerStats) error {
 
-	var count int
-	err := s.db.QueryRow(query, username).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-
-	return count > 0, nil
-}
-
-func (s *Server) doQuery(query, username string, playerStats PlayerStats) error {
-
-	_, err := s.db.Exec(query, username,
+	_, err := s.db.Exec(query, slackID,
 		playerStats.gamesWon,
 		playerStats.gamesLost,
 		playerStats.gamesDrawn,
