@@ -32,6 +32,12 @@ type PlayerStats struct {
 	pointsLost int
 }
 
+type RecordCommand struct {
+	slackID     string
+	channelID   string
+	commandText []string
+}
+
 func NewServer() (*Server, error) {
 	cfg, err := config.Get()
 	if err != nil {
@@ -62,9 +68,13 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	commandText := r.FormValue("text")
 	commandParts := strings.Fields(commandText)
 
+	slackID := r.FormValue("user_id")
+	channelID := r.FormValue("channel_id")
+
 	switch strings.ToLower(commandName) {
 	case "record":
-		s.record(w, commandParts)
+		recordCommand := RecordCommand{slackID, channelID, commandParts}
+		s.record(w, recordCommand)
 	case "leaderboard":
 		s.showLeaderboard(w, r)
 	default:
@@ -72,7 +82,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Server) record(w http.ResponseWriter, commandParts []string) {
+func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 
 	queryUpdateUser := `
 	UPDATE player_stats
@@ -87,15 +97,15 @@ func (s *Server) record(w http.ResponseWriter, commandParts []string) {
 	WHERE SlackID 	= $1;
 	`
 
-	if len(commandParts) < 3 {
+	if len(recordCommand.commandText) < 3 {
 		http.Error(w, "Invalid command format", http.StatusBadRequest)
 		return
 	}
 
-	firstPlayerName := strings.TrimPrefix(commandParts[firstPlayer], "@")
-	secondPlayerName := strings.TrimPrefix(commandParts[secondPlayer], "@")
+	firstPlayerName := strings.TrimPrefix(recordCommand.commandText[firstPlayer], "@")
+	secondPlayerName := strings.TrimPrefix(recordCommand.commandText[secondPlayer], "@")
 
-	sets := commandParts[2:]
+	sets := recordCommand.commandText[2:]
 
 	firstPlayerStats, secondPlayerStats, err := getGameResult(sets)
 	if err != nil {
