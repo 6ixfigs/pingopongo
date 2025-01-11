@@ -2,7 +2,6 @@ package rest
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -23,20 +22,6 @@ type Server struct {
 	db     *sql.DB
 	Config *config.Config
 }
-type PlayerStats struct {
-	gamesWon   int
-	gamesLost  int
-	gamesDrawn int
-	setsWon    int
-	setsLost   int
-	pointsWon  int
-	pointsLost int
-}
-
-type RecordCommand struct {
-	channelID   string
-	commandText []string
-}
 
 func NewServer() (*Server, error) {
 	cfg, err := config.Get()
@@ -49,8 +34,6 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
-	log.Printf("Connected to DB: %s\n", cfg.DBConn)
-
 	return &Server{
 		Router: chi.NewRouter(),
 		db:     db,
@@ -60,34 +43,43 @@ func NewServer() (*Server, error) {
 
 func (s *Server) MountRoutes() {
 	s.Router.Post("/slack/events", s.parse)
-	s.Router.Post("/leaderboard", s.showLeaderboard)
+	s.Router.Post("/leaderboard", s.leaderboard)
 }
 
 func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
-	commandName := r.FormValue("command")
-	commandText := r.FormValue("text")
-	commandParts := strings.Fields(commandText)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Something went wrong", http.StatusOK)
+		return
+	}
 
-	// slackID := r.FormValue("user_id")
-	channelID := r.FormValue("channel_id")
-	channelID = strings.TrimPrefix(channelID, "<#")
-	channelID = strings.TrimSuffix(channelID, ">")
+	request := &SlackRequest{
+		r.FormValue("team_id"),
+		r.FormValue("team_domain"),
+		r.FormValue("enterprise_id"),
+		r.FormValue("enterprise_name"),
+		r.FormValue("channel_id"),
+		r.FormValue("channel_name"),
+		r.FormValue("user_id"),
+		r.FormValue("command"),
+		r.FormValue("text"),
+		r.FormValue("response_url"),
+		r.FormValue("trigger_id"),
+		r.FormValue("api_app_id"),
+	}
 
-	switch strings.ToLower(commandName) {
+	switch strings.ToLower(request.command) {
 	case "/record":
-		recordCommand := RecordCommand{channelID, commandParts}
-		s.record(w, recordCommand)
+		s.record(w, request)
 	case "/leaderboard":
-		s.showLeaderboard(w, r)
+		s.leaderboard(w, r)
 	default:
 
 	}
-
 }
 
-func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
+func (s *Server) record(w http.ResponseWriter, recordCommand *SlackRequest) {
 
-	queryUpdateUser := `
+	query := `
 	UPDATE player_stats
 	SET
 		gameswon 	= gameswon + $3,
@@ -100,12 +92,13 @@ func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 	WHERE slackid 	= $1 AND channelid = $2;
 	`
 
-	if len(recordCommand.commandText) < 3 {
-		sendResponse(w, "Invalid command format", http.StatusBadRequest)
+	commandParts := strings.Split(recordCommand.text, " ")
+	if len(commandParts) < 3 {
+		sendResponse(w, "Invalid command format")
 		return
 	}
 
-	firstPlayerSlackID, secondPlayerSlackID := recordCommand.commandText[0], recordCommand.commandText[1]
+	firstPlayerSlackID, secondPlayerSlackID := commandParts[0], commandParts[1]
 
 	firstPlayerSlackID = strings.TrimPrefix(firstPlayerSlackID, "<@")
 	firstPlayerSlackID = strings.Split(strings.TrimSuffix(firstPlayerSlackID, ">"), "|")[0]
@@ -113,7 +106,7 @@ func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 	secondPlayerSlackID = strings.TrimPrefix(secondPlayerSlackID, "<@")
 	secondPlayerSlackID = strings.Split(strings.TrimSuffix(secondPlayerSlackID, ">"), "|")[0]
 
-	sets := recordCommand.commandText[2:]
+	sets := commandParts[2:]
 
 	firstPlayerStats, secondPlayerStats, err := getGameResult(sets)
 
@@ -121,23 +114,37 @@ func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	err = s.doQuery(queryUpdateUser, firstPlayerSlackID, recordCommand.channelID, firstPlayerStats)
+	err = s.doQuery(query, firstPlayerSlackID, recordCommand.channelID, firstPlayerStats)
 
 	if err != nil {
-		sendResponse(w, "Error updating player1 stats", http.StatusInternalServerError)
+		sendResponse(w, "Error updating player1 stats")
 		return
 	}
 
-	err = s.doQuery(queryUpdateUser, secondPlayerSlackID, recordCommand.channelID, secondPlayerStats)
+	err = s.doQuery(query, secondPlayerSlackID, recordCommand.channelID, secondPlayerStats)
 	if err != nil {
-		sendResponse(w, "Error updating player2 stats", http.StatusInternalServerError)
+		sendResponse(w, "Error updating player2 stats")
 		return
 	}
 
-	sendResponse(w, "Command processed sucessfully!", http.StatusOK)
+	winner := firstPlayerSlackID
+	if secondPlayerStats.setsWon > firstPlayerStats.setsWon {
+		winner = secondPlayerSlackID
+	}
+
+	responseText := formatMatchResponse(
+		firstPlayerSlackID,
+		secondPlayerSlackID,
+		sets,
+		winner,
+		firstPlayerStats.setsWon,
+		secondPlayerStats.setsWon,
+	)
+
+	sendResponse(w, responseText)
 }
 
-func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
+func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request) {
 
 }
 
@@ -202,13 +209,42 @@ func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
 
 }
 
-func sendResponse(w http.ResponseWriter, responseText string, status int) {
-	response := map[string]string{
-		"response_type": "in_channel",
-		"text":          responseText,
+func sendResponse(w http.ResponseWriter, responseText string) {
+	response, err := json.Marshal(&SlackResponse{"in_channel", responseText})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(response)
+	w.Write(response)
+
+}
+
+func formatMatchResponse(firstPlayer, secondPlayer string, sets []string, winner string, firstPlayerSetsWon, secondPlayerSetsWon int) string {
+	var setsDetails string
+	for i, set := range sets {
+		setsDetails += fmt.Sprintf("- Set %d: %s\n", i+1, set)
+	}
+
+	var response string
+	if firstPlayerSetsWon != secondPlayerSetsWon {
+		response = fmt.Sprintf(
+			"Match recorded successfully:\n<@%s> vs <@%s>\n%s🎉 Winner: <@%s> (%d-%d in sets)",
+			firstPlayer,
+			secondPlayer,
+			setsDetails,
+			winner,
+			firstPlayerSetsWon,
+			secondPlayerSetsWon,
+		)
+	} else {
+		response = fmt.Sprintf(
+			"Match recorder succesfully:\n<@%s> vs <@%s>\n%sDraw",
+			firstPlayer,
+			secondPlayer,
+			setsDetails,
+		)
+	}
+
+	return response
 }
