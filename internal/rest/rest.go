@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
@@ -109,12 +110,13 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 	}
 
 	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"#", "Player", "W", "D", "L", "P", "Win Ratio"})
 	for rank, player := range players {
 		matchesPlayed := player.matchesWon + player.matchesDrawn + player.matchesLost
 		t.AppendRow(table.Row{
 			rank + 1,
-			fmt.Sprintf("<@%s>", player.userID),
+			player.userID,
 			player.matchesWon,
 			player.matchesDrawn,
 			player.matchesLost,
@@ -122,7 +124,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 			fmt.Sprintf("%.2f", float64(player.matchesWon)/float64(matchesPlayed)*100),
 		})
 	}
-	leaderboard := t.Render()
+	leaderboard := fmt.Sprintf("```%s```", t.Render())
 
 	response, err := json.Marshal(&SlackResponse{"in_channel", leaderboard})
 	if err != nil {
