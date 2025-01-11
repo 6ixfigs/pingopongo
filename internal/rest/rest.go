@@ -80,16 +80,16 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 func (s *Server) record(w http.ResponseWriter, recordCommand *SlackRequest) {
 
 	query := `
-	UPDATE player_stats
+	UPDATE players
 	SET
-		gameswon 	= gameswon + $3,
-		gameslost 	= gameslost + $4,
-		gamesdrawn	= gamesdrawn + $5,
-		setswon		= setswon + $6,
-		setslost 	= setslost + $7,
-		pointswon 	= pointswon + $8,
-		pointslost 	= pointslost + $9
-	WHERE slackid 	= $1 AND channelid = $2;
+		games_won 	= games_won + $3,
+		games_lost 	= games_lost + $4,
+		games_drawn	= games_drawn + $5,
+		sets_won	= sets_won + $6,
+		sets_lost 	= sets_lost + $7,
+		points_won 	= points_won + $8,
+		points_lost = points_lost + $9
+	WHERE slack_id 	= $1 AND channel_id = $2;
 	`
 
 	commandParts := strings.Split(recordCommand.text, " ")
