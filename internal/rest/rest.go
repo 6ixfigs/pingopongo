@@ -105,6 +105,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 
 	if err = rows.Err(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	t := table.NewWriter()
@@ -126,6 +127,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 	response, err := json.Marshal(&SlackResponse{"in_channel", leaderboard})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
