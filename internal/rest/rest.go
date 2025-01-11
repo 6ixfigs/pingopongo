@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
@@ -75,7 +74,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 		SELECT user_id, matches_won, matches_drawn, matches_lost
 		FROM players
 		WHERE channel_id = $1
-		ORDER BY matches_won
+		ORDER BY matches_won DESC
 		LIMIT 15
 	`
 
@@ -110,13 +109,12 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 	}
 
 	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"#", "Player", "W", "D", "L", "P", "Win Ratio"})
 	for rank, player := range players {
 		matchesPlayed := player.matchesWon + player.matchesDrawn + player.matchesLost
 		t.AppendRow(table.Row{
 			rank + 1,
-			player.userID,
+			fmt.Sprintf("<%s>", player.userID),
 			player.matchesWon,
 			player.matchesDrawn,
 			player.matchesLost,
