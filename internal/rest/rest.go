@@ -61,15 +61,33 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		r.FormValue("api_app_id"),
 	}
 
+	var text string
+	var err error
+
 	switch request.command {
 	case "/leaderboard":
-		s.leaderboard(w, request)
+		text, err = s.leaderboard(request.channelID)
 	default:
 		http.Error(w, "Received invalid command", http.StatusOK)
+		return
 	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response, err := json.Marshal(&SlackResponse{"in_channel", text})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(response)
 }
 
-func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
+func (s *Server) leaderboard(channelID string) (string, error) {
 	query := `
 		SELECT full_name, matches_won, matches_drawn, matches_lost
 		FROM players
@@ -78,10 +96,9 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 		LIMIT 15
 	`
 
-	rows, err := s.db.Query(query, r.channelID)
+	rows, err := s.db.Query(query, channelID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return "", err
 	}
 	defer rows.Close()
 
@@ -96,16 +113,14 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 			&player.matchesLost,
 		)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			return "", err
 		}
 
 		players = append(players, player)
 	}
 
 	if err = rows.Err(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return "", err
 	}
 
 	t := table.NewWriter()
@@ -124,12 +139,5 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 	}
 	leaderboard := fmt.Sprintf("```%s```", t.Render())
 
-	response, err := json.Marshal(&SlackResponse{"in_channel", leaderboard})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
+	return leaderboard, nil
 }
