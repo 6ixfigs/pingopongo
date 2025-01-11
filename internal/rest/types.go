@@ -32,7 +32,7 @@ type Player struct {
 	currentStreak int
 }
 
-type PlayerStats struct {
+type GameStats struct {
 	gamesWon   int
 	gamesLost  int
 	gamesDrawn int

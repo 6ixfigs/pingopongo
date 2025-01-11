@@ -148,7 +148,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Server) doQuery(query, slackID, channelID string, playerStats PlayerStats) error {
+func (s *Server) doQuery(query, slackID, channelID string, playerStats GameStats) error {
 
 	_, err := s.db.Exec(query, slackID, channelID,
 		playerStats.gamesWon,
@@ -162,7 +162,7 @@ func (s *Server) doQuery(query, slackID, channelID string, playerStats PlayerSta
 	return err
 }
 
-func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
+func getGameResult(sets []string) (GameStats, GameStats, error) {
 	firstPlayerSetsWon, secondPlayerSetsWon := 0, 0
 	totalFirstPlayerScore, totalSecondPlayerScore := 0, 0
 
@@ -170,18 +170,18 @@ func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
 		score := strings.Split(set, "-")
 
 		if len(score) != 2 {
-			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid set format: %s", set)
+			return GameStats{}, GameStats{}, fmt.Errorf("invalid set format: %s", set)
 		}
 
 		firstPlayerScore, err := strconv.Atoi(score[firstPlayer])
 		if err != nil {
-			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid player1 score format")
+			return GameStats{}, GameStats{}, fmt.Errorf("invalid player1 score format")
 		}
 		totalFirstPlayerScore += firstPlayerScore
 
 		secondPlayerScore, err := strconv.Atoi(score[secondPlayer])
 		if err != nil {
-			return PlayerStats{}, PlayerStats{}, fmt.Errorf("invalid player2 score format")
+			return GameStats{}, GameStats{}, fmt.Errorf("invalid player2 score format")
 		}
 		totalSecondPlayerScore += secondPlayerScore
 
@@ -194,16 +194,16 @@ func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
 
 	switch {
 	case firstPlayerSetsWon > secondPlayerSetsWon:
-		return PlayerStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
-			PlayerStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
+		return GameStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
+			GameStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
 			nil
 	case firstPlayerSetsWon < secondPlayerSetsWon:
-		return PlayerStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
-			PlayerStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
+		return GameStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
+			GameStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
 			nil
 	default:
-		return PlayerStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
-			PlayerStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
+		return GameStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
+			GameStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
 			nil
 	}
 
