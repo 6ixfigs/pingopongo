@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"database/sql"
+	"encoding/json"
 	"net/http"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
@@ -100,7 +101,7 @@ func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 	`
 
 	if len(recordCommand.commandText) < 3 {
-		http.Error(w, "Invalid command format", http.StatusBadRequest)
+		sendResponse(w, "Invalid command format", http.StatusBadRequest)
 		return
 	}
 
@@ -123,18 +124,17 @@ func (s *Server) record(w http.ResponseWriter, recordCommand RecordCommand) {
 	err = s.doQuery(queryUpdateUser, firstPlayerSlackID, recordCommand.channelID, firstPlayerStats)
 
 	if err != nil {
-		http.Error(w, "Error updating player1 stats", http.StatusInternalServerError)
+		sendResponse(w, "Error updating player1 stats", http.StatusInternalServerError)
 		return
 	}
 
 	err = s.doQuery(queryUpdateUser, secondPlayerSlackID, recordCommand.channelID, secondPlayerStats)
 	if err != nil {
-		http.Error(w, "Error updating player2 stats", http.StatusInternalServerError)
+		sendResponse(w, "Error updating player2 stats", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Command processed successfully!"))
+	sendResponse(w, "Command processed sucessfully!", http.StatusOK)
 }
 
 func (s *Server) showLeaderboard(w http.ResponseWriter, r *http.Request) {
@@ -200,4 +200,15 @@ func getGameResult(sets []string) (PlayerStats, PlayerStats, error) {
 			nil
 	}
 
+}
+
+func sendResponse(w http.ResponseWriter, responseText string, status int) {
+	response := map[string]string{
+		"response_type": "in_channel",
+		"text":          responseText,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(response)
 }
