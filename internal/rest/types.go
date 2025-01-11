@@ -23,6 +23,7 @@ type SlackResponse struct {
 type Player struct {
 	id            int
 	userID        string
+	fullName      string
 	channelID     string
 	matchesWon    int
 	matchesDrawn  int

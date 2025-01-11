@@ -71,7 +71,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 	query := `
-		SELECT user_id, matches_won, matches_drawn, matches_lost
+		SELECT full_name, matches_won, matches_drawn, matches_lost
 		FROM players
 		WHERE channel_id = $1
 		ORDER BY matches_won DESC
@@ -90,7 +90,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 	for rows.Next() {
 		var player Player
 		err = rows.Scan(
-			&player.userID,
+			&player.fullName,
 			&player.matchesWon,
 			&player.matchesDrawn,
 			&player.matchesLost,
@@ -114,7 +114,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *SlackRequest) {
 		matchesPlayed := player.matchesWon + player.matchesDrawn + player.matchesLost
 		t.AppendRow(table.Row{
 			rank + 1,
-			fmt.Sprintf("<%s>", player.userID),
+			player.fullName,
 			player.matchesWon,
 			player.matchesDrawn,
 			player.matchesLost,
