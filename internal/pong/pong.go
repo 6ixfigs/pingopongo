@@ -65,7 +65,7 @@ func (p *Pong) Leaderboard(channelID string) (string, error) {
 			fmt.Sprintf("%.2f", float64(player.matchesWon)/float64(matchesPlayed)*100),
 		})
 	}
-	leaderboard := fmt.Sprintf("```%s```", t.Render())
+	leaderboard := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
 
 	return leaderboard, nil
 }
