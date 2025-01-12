@@ -162,7 +162,7 @@ func formatMatchResponse(firstPlayer, secondPlayer string, sgames []string, winn
 	var response string
 	if firstPlayerGamesWon != secondPlayerGamesWon {
 		response = fmt.Sprintf(
-			"Match recorded successfully:\n<@%s> vs <@%s>\n%s🎉 Winner: <@%s> (%d-%d in sets)",
+			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in sets)",
 			firstPlayer,
 			secondPlayer,
 			setsDetails,
