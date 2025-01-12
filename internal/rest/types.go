@@ -30,14 +30,8 @@ type Player struct {
 	setsWon       int
 	setsLost      int
 	currentStreak int
-}
-
-type GameStats struct {
-	gamesWon   int
-	gamesLost  int
-	gamesDrawn int
-	setsWon    int
-	setsLost   int
-	pointsWon  int
-	pointsLost int
+	gamesWon      int
+	gamesLost     int
+	pointsWon     int
+	pointsLost    int
 }

@@ -2,6 +2,7 @@ package rest
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -13,9 +14,6 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/go-chi/chi/v5"
 )
-
-const firstPlayer int = 0
-const secondPlayer int = 1
 
 type Server struct {
 	Router chi.Router
@@ -43,7 +41,6 @@ func NewServer() (*Server, error) {
 
 func (s *Server) MountRoutes() {
 	s.Router.Post("/slack/events", s.parse)
-	s.Router.Post("/leaderboard", s.leaderboard)
 }
 
 func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
@@ -67,17 +64,15 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		r.FormValue("api_app_id"),
 	}
 
-	switch strings.ToLower(request.command) {
+	switch request.command {
 	case "/record":
 		s.record(w, request)
-	case "/leaderboard":
-		s.leaderboard(w, r)
 	default:
 
 	}
 }
 
-func (s *Server) record(w http.ResponseWriter, recordCommand *SlackRequest) {
+func (s *Server) record(w http.ResponseWriter, r *SlackRequest) {
 
 	query := `
 	UPDATE players
@@ -92,121 +87,140 @@ func (s *Server) record(w http.ResponseWriter, recordCommand *SlackRequest) {
 	WHERE slack_id 	= $1 AND channel_id = $2;
 	`
 
-	commandParts := strings.Split(recordCommand.text, " ")
+	commandParts := strings.Split(r.text, " ")
 	if len(commandParts) < 3 {
 		sendResponse(w, "Invalid command format")
 		return
 	}
 
-	firstPlayerSlackID, secondPlayerSlackID := commandParts[0], commandParts[1]
+	var firstPlayer, secondPlayer Player
 
-	firstPlayerSlackID = strings.TrimPrefix(firstPlayerSlackID, "<@")
-	firstPlayerSlackID = strings.Split(strings.TrimSuffix(firstPlayerSlackID, ">"), "|")[0]
+	firstPlayer.userID = strings.Split(strings.TrimPrefix(commandParts[0], "<@"), "|")[0]
+	secondPlayer.userID = strings.Split(strings.TrimPrefix(commandParts[1], "<@"), "|")[0]
 
-	secondPlayerSlackID = strings.TrimPrefix(secondPlayerSlackID, "<@")
-	secondPlayerSlackID = strings.Split(strings.TrimSuffix(secondPlayerSlackID, ">"), "|")[0]
+	firstPlayer.channelID = r.channelID
+	secondPlayer.channelID = r.channelID
 
-	sets := commandParts[2:]
+	games := commandParts[2:]
 
-	firstPlayerStats, secondPlayerStats, err := getGameResult(sets)
+	err := getMatchResult(games, &firstPlayer, &secondPlayer)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	err = s.doQuery(query, firstPlayerSlackID, recordCommand.channelID, firstPlayerStats)
+	log.Println(firstPlayer.userID)
+	log.Println(firstPlayer.channelID)
+	log.Println(firstPlayer.matchesWon)
+	log.Println(firstPlayer.matchesLost)
+	log.Println(firstPlayer.matchesDrawn)
+	log.Println(firstPlayer.gamesWon)
+	log.Println(firstPlayer.gamesLost)
+	log.Println(firstPlayer.pointsWon)
+	log.Println(firstPlayer.pointsLost)
+
+	_, err = s.db.Exec(query, firstPlayer.userID, firstPlayer.channelID,
+		firstPlayer.matchesWon,
+		firstPlayer.matchesLost,
+		firstPlayer.matchesDrawn,
+		firstPlayer.gamesWon,
+		firstPlayer.gamesLost,
+		firstPlayer.pointsWon,
+		firstPlayer.pointsLost)
 
 	if err != nil {
 		sendResponse(w, "Error updating player1 stats")
 		return
 	}
 
-	err = s.doQuery(query, secondPlayerSlackID, recordCommand.channelID, secondPlayerStats)
+	_, err = s.db.Exec(query, secondPlayer.userID, secondPlayer.channelID,
+		secondPlayer.matchesWon,
+		secondPlayer.matchesLost,
+		secondPlayer.matchesDrawn,
+		secondPlayer.gamesWon,
+		secondPlayer.gamesLost,
+		secondPlayer.pointsWon,
+		secondPlayer.gamesLost)
+
 	if err != nil {
 		sendResponse(w, "Error updating player2 stats")
 		return
 	}
 
-	winner := firstPlayerSlackID
-	if secondPlayerStats.setsWon > firstPlayerStats.setsWon {
-		winner = secondPlayerSlackID
+	winner := firstPlayer.userID
+	if secondPlayer.gamesWon > firstPlayer.gamesWon {
+		winner = secondPlayer.userID
 	}
 
 	responseText := formatMatchResponse(
-		firstPlayerSlackID,
-		secondPlayerSlackID,
-		sets,
+		firstPlayer.userID,
+		secondPlayer.userID,
+		games,
 		winner,
-		firstPlayerStats.setsWon,
-		secondPlayerStats.setsWon,
+		firstPlayer.gamesWon,
+		secondPlayer.gamesWon,
 	)
 
 	sendResponse(w, responseText)
 }
 
-func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (s *Server) doQuery(query, slackID, channelID string, playerStats GameStats) error {
-
-	_, err := s.db.Exec(query, slackID, channelID,
-		playerStats.gamesWon,
-		playerStats.gamesLost,
-		playerStats.gamesDrawn,
-		playerStats.setsWon,
-		playerStats.setsLost,
-		playerStats.pointsWon,
-		playerStats.pointsLost)
-
-	return err
-}
-
-func getGameResult(sets []string) (GameStats, GameStats, error) {
-	firstPlayerSetsWon, secondPlayerSetsWon := 0, 0
+func getMatchResult(games []string, p1, p2 *Player) error {
+	firstPlayerGamesWon, secondPlayerGamesWon := 0, 0
 	totalFirstPlayerScore, totalSecondPlayerScore := 0, 0
 
-	for _, set := range sets {
-		score := strings.Split(set, "-")
+	for _, game := range games {
+		score := strings.Split(game, "-")
 
 		if len(score) != 2 {
-			return GameStats{}, GameStats{}, fmt.Errorf("invalid set format: %s", set)
+			return fmt.Errorf("invalid set format: %s", game)
 		}
 
-		firstPlayerScore, err := strconv.Atoi(score[firstPlayer])
+		firstPlayerScore, err := strconv.Atoi(score[0])
 		if err != nil {
-			return GameStats{}, GameStats{}, fmt.Errorf("invalid player1 score format")
+			return fmt.Errorf("invalid player1 score format")
 		}
 		totalFirstPlayerScore += firstPlayerScore
 
-		secondPlayerScore, err := strconv.Atoi(score[secondPlayer])
+		secondPlayerScore, err := strconv.Atoi(score[1])
 		if err != nil {
-			return GameStats{}, GameStats{}, fmt.Errorf("invalid player2 score format")
+			return fmt.Errorf("invalid player2 score format")
 		}
 		totalSecondPlayerScore += secondPlayerScore
 
 		if firstPlayerScore > secondPlayerScore {
-			firstPlayerSetsWon++
+			firstPlayerGamesWon++
 		} else if firstPlayerScore < secondPlayerScore {
-			secondPlayerSetsWon++
+			secondPlayerGamesWon++
 		}
 	}
 
+	p1.gamesWon = firstPlayerGamesWon
+	p1.gamesLost = secondPlayerGamesWon
+
+	p1.pointsWon = totalFirstPlayerScore
+	p1.pointsLost = totalSecondPlayerScore
+
+	p2.gamesWon = secondPlayerGamesWon
+	p2.gamesLost = firstPlayerGamesWon
+
+	p2.pointsWon = totalSecondPlayerScore
+	p2.pointsLost = totalFirstPlayerScore
+
 	switch {
-	case firstPlayerSetsWon > secondPlayerSetsWon:
-		return GameStats{1, 0, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
-			GameStats{0, 1, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
-			nil
-	case firstPlayerSetsWon < secondPlayerSetsWon:
-		return GameStats{0, 1, 0, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
-			GameStats{1, 0, 0, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
-			nil
+	case firstPlayerGamesWon > secondPlayerGamesWon:
+		p1.matchesWon++
+		p2.matchesLost++
+
+	case firstPlayerGamesWon < secondPlayerGamesWon:
+		p2.matchesWon++
+		p1.matchesLost++
+
 	default:
-		return GameStats{0, 0, 1, firstPlayerSetsWon, secondPlayerSetsWon, totalFirstPlayerScore, totalSecondPlayerScore},
-			GameStats{0, 0, 1, secondPlayerSetsWon, firstPlayerSetsWon, totalSecondPlayerScore, totalFirstPlayerScore},
-			nil
+		p1.matchesDrawn++
+		p2.matchesDrawn++
 	}
 
+	return nil
 }
 
 func sendResponse(w http.ResponseWriter, responseText string) {
@@ -220,22 +234,22 @@ func sendResponse(w http.ResponseWriter, responseText string) {
 
 }
 
-func formatMatchResponse(firstPlayer, secondPlayer string, sets []string, winner string, firstPlayerSetsWon, secondPlayerSetsWon int) string {
+func formatMatchResponse(firstPlayer, secondPlayer string, sgames []string, winner string, firstPlayerGamesWon, secondPlayerGamesWon int) string {
 	var setsDetails string
-	for i, set := range sets {
+	for i, set := range sgames {
 		setsDetails += fmt.Sprintf("- Set %d: %s\n", i+1, set)
 	}
 
 	var response string
-	if firstPlayerSetsWon != secondPlayerSetsWon {
+	if firstPlayerGamesWon != secondPlayerGamesWon {
 		response = fmt.Sprintf(
 			"Match recorded successfully:\n<@%s> vs <@%s>\n%s🎉 Winner: <@%s> (%d-%d in sets)",
 			firstPlayer,
 			secondPlayer,
 			setsDetails,
 			winner,
-			firstPlayerSetsWon,
-			secondPlayerSetsWon,
+			firstPlayerGamesWon,
+			secondPlayerGamesWon,
 		)
 	} else {
 		response = fmt.Sprintf(
