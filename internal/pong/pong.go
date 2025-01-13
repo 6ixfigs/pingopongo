@@ -122,7 +122,7 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 		scores := strings.Split(game, "-")
 
 		if len(scores) != 2 {
-			return fmt.Errorf("invalid set format: %s", game)
+			return fmt.Errorf("invalid game format: %s", game)
 		}
 
 		firstPlayerScore, err := strconv.Atoi(scores[0])
@@ -171,28 +171,28 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 	return nil
 }
 
-func formatMatchResponse(firstPlayer, secondPlayer string, sgames []string, winner string, firstPlayerGamesWon, secondPlayerGamesWon int) string {
+func formatMatchResponse(p1, p2 string, games []string, winner string, games1, games2 int) string {
 	var gamesDetails string
-	for i, set := range sgames {
-		gamesDetails += fmt.Sprintf("- Set %d: %s\n", i+1, set)
+	for i, g := range games {
+		gamesDetails += fmt.Sprintf("- Game %d: %s\n", i+1, g)
 	}
 
 	var response string
-	if firstPlayerGamesWon != secondPlayerGamesWon {
+	if games1 != games2 {
 		response = fmt.Sprintf(
 			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
-			firstPlayer,
-			secondPlayer,
+			p1,
+			p2,
 			gamesDetails,
 			winner,
-			firstPlayerGamesWon,
-			secondPlayerGamesWon,
+			games1,
+			games2,
 		)
 	} else {
 		response = fmt.Sprintf(
 			"Match recorder succesfully:\n<@%s> vs <@%s>\n%sDraw",
-			firstPlayer,
-			secondPlayer,
+			p1,
+			p2,
 			gamesDetails,
 		)
 	}
