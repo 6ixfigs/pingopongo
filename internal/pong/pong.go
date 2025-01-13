@@ -3,7 +3,6 @@ package pong
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -75,7 +74,6 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		return "", err
 	}
 
-	log.Println("ok")
 	_, err = p.db.Exec(query, p2.userID, p2.channelID,
 		p2.matchesWon,
 		p2.matchesLost,
