@@ -23,8 +23,8 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		games_won 	= games_won + $3,
 		games_lost 	= games_lost + $4,
 		games_drawn	= games_drawn + $5,
-		sets_won	= sets_won + $6,
-		sets_lost 	= sets_lost + $7,
+		games_won	= games_won + $6,
+		games_lost 	= games_lost + $7,
 		points_won 	= points_won + $8,
 		points_lost = points_lost + $9
 	WHERE slack_id 	= $1 AND channel_id = $2;
@@ -154,18 +154,18 @@ func getMatchResult(games []string, p1, p2 *Player) error {
 }
 
 func formatMatchResponse(firstPlayer, secondPlayer string, sgames []string, winner string, firstPlayerGamesWon, secondPlayerGamesWon int) string {
-	var setsDetails string
+	var gamesDetails string
 	for i, set := range sgames {
-		setsDetails += fmt.Sprintf("- Set %d: %s\n", i+1, set)
+		gamesDetails += fmt.Sprintf("- Set %d: %s\n", i+1, set)
 	}
 
 	var response string
 	if firstPlayerGamesWon != secondPlayerGamesWon {
 		response = fmt.Sprintf(
-			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in sets)",
+			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
 			firstPlayer,
 			secondPlayer,
-			setsDetails,
+			gamesDetails,
 			winner,
 			firstPlayerGamesWon,
 			secondPlayerGamesWon,
@@ -175,7 +175,7 @@ func formatMatchResponse(firstPlayer, secondPlayer string, sgames []string, winn
 			"Match recorder succesfully:\n<@%s> vs <@%s>\n%sDraw",
 			firstPlayer,
 			secondPlayer,
-			setsDetails,
+			gamesDetails,
 		)
 	}
 
