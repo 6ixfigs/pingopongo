@@ -93,14 +93,7 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		winner = p2.userID
 	}
 
-	responseText := formatMatchResponse(
-		p1.userID,
-		p2.userID,
-		games,
-		winner,
-		p1.gamesWon,
-		p2.gamesWon,
-	)
+	responseText := formatMatchResponse(p1, p2, games, winner)
 
 	return responseText, nil
 }
@@ -171,28 +164,28 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 	return nil
 }
 
-func formatMatchResponse(p1, p2 string, games []string, winner string, games1, games2 int) string {
+func formatMatchResponse(p1, p2 Player, games []string, winner string) string {
 	var gamesDetails string
 	for i, g := range games {
 		gamesDetails += fmt.Sprintf("- Game %d: %s\n", i+1, g)
 	}
 
 	var response string
-	if games1 != games2 {
+	if p1.gamesWon != p2.gamesWon {
 		response = fmt.Sprintf(
 			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
-			p1,
-			p2,
+			p1.userID,
+			p2.userID,
 			gamesDetails,
 			winner,
-			games1,
-			games2,
+			p1.gamesWon,
+			p2.gamesWon,
 		)
 	} else {
 		response = fmt.Sprintf(
 			"Match recorder succesfully:\n<@%s> vs <@%s>\n%sDraw",
-			p1,
-			p2,
+			p1.userID,
+			p2.userID,
 			gamesDetails,
 		)
 	}
