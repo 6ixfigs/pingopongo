@@ -40,7 +40,7 @@ func (s *Server) MountRoutes() {
 
 func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -66,18 +66,18 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	case "/leaderboard":
 		text, err = s.pong.Leaderboard(request.channelID)
 	default:
-		http.Error(w, "Received invalid command", http.StatusOK)
+		http.Error(w, "Unsupported command", http.StatusBadRequest)
 		return
 	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	response, err := json.Marshal(&SlackResponse{"in_channel", text})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
