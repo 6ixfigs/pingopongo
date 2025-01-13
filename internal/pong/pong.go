@@ -32,7 +32,7 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 
 	commandParts := strings.Split(commandText, " ")
 	if len(commandParts) < 3 {
-		return "", fmt.Errorf("invalid command format")
+		return "", fmt.Errorf("not enough arguments in command")
 	}
 
 	var firstPlayer, secondPlayer Player
