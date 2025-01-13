@@ -42,13 +42,14 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 	id1 := re.FindString(commandParts[0])
 	if id1 != "" {
 		p1.userID = strings.Split(strings.TrimPrefix(commandParts[0], "<@"), "|")[0]
-		log.Println(p1.userID)
+	} else {
 		return "", fmt.Errorf("tag user %s", commandParts[0])
 	}
 
-	id2 := re.FindString(commandParts[0])
+	id2 := re.FindString(commandParts[1])
 	if id2 != "" {
 		p2.userID = strings.Split(strings.TrimPrefix(commandParts[1], "<@"), "|")[0]
+	} else {
 		return "", fmt.Errorf("tag user %s", commandParts[1])
 	}
 
@@ -68,8 +69,7 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		p1.matchesDrawn,
 		p1.gamesWon,
 		p1.gamesLost,
-		p1.pointsWon,
-		p1.pointsLost)
+		p1.pointsWon)
 
 	if err != nil {
 		return "", err
@@ -81,8 +81,7 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		p2.matchesDrawn,
 		p2.gamesWon,
 		p2.gamesLost,
-		p2.pointsWon,
-		p2.gamesLost)
+		p2.pointsWon)
 
 	if err != nil {
 		return "", err
@@ -106,10 +105,19 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 }
 
 func processMatchResult(games []string, p1, p2 *Player) error {
-	firstPlayerGamesWon, secondPlayerGamesWon := 0, 0
-	totalFirstPlayerScore, totalSecondPlayerScore := 0, 0
+	r := `[0-9]+\-[0-9]+`
+	re := regexp.MustCompile(r)
+
+	totalGames1, totalGames2 := 0, 0
+	totalScore1, totalScore2 := 0, 0
 
 	for _, game := range games {
+		s := re.FindString(game)
+
+		if s == "" {
+			return fmt.Errorf("invalid game format %s", game)
+		}
+
 		score := strings.Split(game, "-")
 
 		if len(score) != 2 {
@@ -120,39 +128,37 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 		if err != nil {
 			return fmt.Errorf("invalid player1 score format")
 		}
-		totalFirstPlayerScore += firstPlayerScore
+		totalScore1 += firstPlayerScore
 
 		secondPlayerScore, err := strconv.Atoi(score[1])
 		if err != nil {
 			return fmt.Errorf("invalid player2 score format")
 		}
-		totalSecondPlayerScore += secondPlayerScore
+		totalScore2 += secondPlayerScore
 
 		if firstPlayerScore > secondPlayerScore {
-			firstPlayerGamesWon++
+			totalGames1++
 		} else if firstPlayerScore < secondPlayerScore {
-			secondPlayerGamesWon++
+			totalGames2++
 		}
 	}
 
-	p1.gamesWon = firstPlayerGamesWon
-	p1.gamesLost = secondPlayerGamesWon
+	p1.gamesWon = totalGames1
+	p1.gamesLost = totalGames2
 
-	p1.pointsWon = totalFirstPlayerScore
-	p1.pointsLost = totalSecondPlayerScore
+	p1.pointsWon = totalScore1
 
-	p2.gamesWon = secondPlayerGamesWon
-	p2.gamesLost = firstPlayerGamesWon
+	p2.gamesWon = totalGames2
+	p2.gamesLost = totalGames1
 
-	p2.pointsWon = totalSecondPlayerScore
-	p2.pointsLost = totalFirstPlayerScore
+	p2.pointsWon = totalScore2
 
 	switch {
-	case firstPlayerGamesWon > secondPlayerGamesWon:
+	case totalGames1 > totalGames2:
 		p1.matchesWon++
 		p2.matchesLost++
 
-	case firstPlayerGamesWon < secondPlayerGamesWon:
+	case totalGames1 < totalGames2:
 		p2.matchesWon++
 		p1.matchesLost++
 
@@ -160,6 +166,8 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 		p1.matchesDrawn++
 		p2.matchesDrawn++
 	}
+
+	log.Println("OK")
 
 	return nil
 }
