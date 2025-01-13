@@ -8,7 +8,7 @@ PingyPongy is an application for tracking Ping Pong scores, integrated with Slac
 
 **Description:** Record a match result by specifying the players and the score in each set.
 
-**Command:** `/pingypongy record <player1> <player2> <set1> [sets...]`
+**Command:** `/pingypongy record <player1> <player2> <game1> [games...]`
 
 **Example:**
 
@@ -19,11 +19,11 @@ PingyPongy is an application for tracking Ping Pong scores, integrated with Slac
 **Response:**
 
 ```
-Match recorded successfuly:
+Match recorded successfully:
 @marc vs @vukota
-- Set 1: 11-7
-- Set 2: 5-11
-- Set 3: 11-8
+- Game 1: 11-7
+- Game 2: 5-11
+- Game 3: 11-8
 🎉 Winner: @marc (2-1 in sets)
 ```
 
@@ -60,8 +60,8 @@ Stats for @marc:
 - Matches Played: 6
 - Matches Won: 5
 - Matches Lost: 1
-- Sets Won: 11
-- Sets Lost: 5
+- Games Won: 11
+- Games Lost: 5
 - Win Ratio: 83.33%
 - Current Streak: 4 Wins
 ```
