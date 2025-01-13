@@ -42,14 +42,14 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 	if id1 != "" {
 		p1.userID = strings.Split(strings.TrimPrefix(commandParts[0], "<@"), "|")[0]
 	} else {
-		return "", fmt.Errorf("tag user %s", commandParts[0])
+		return "", fmt.Errorf("invalid player1 tag %s", commandParts[0])
 	}
 
 	id2 := re.FindString(commandParts[1])
 	if id2 != "" {
 		p2.userID = strings.Split(strings.TrimPrefix(commandParts[1], "<@"), "|")[0]
 	} else {
-		return "", fmt.Errorf("tag user %s", commandParts[1])
+		return "", fmt.Errorf("invalid player2 tag %s", commandParts[1])
 	}
 
 	p1.channelID = channelID
@@ -104,9 +104,9 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 	score1, score2 := 0, 0
 
 	for _, game := range games {
-		s := re.FindString(game)
+		score := re.FindString(game)
 
-		if s == "" {
+		if score == "" {
 			return fmt.Errorf("invalid game format %s", game)
 		}
 
