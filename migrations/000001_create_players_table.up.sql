@@ -6,8 +6,8 @@ CREATE TABLE players (
 	matches_won integer,
 	matches_drawn integer,
 	matches_lost integer,
-	sets_won integer,
-	sets_lost integer,
+	games_won integer,
+	games_lost integer,
 	current_streak integer,
 	UNIQUE(user_id, channel_id)
 );
