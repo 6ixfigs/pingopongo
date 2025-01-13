@@ -108,8 +108,8 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 	r := `[0-9]+\-[0-9]+`
 	re := regexp.MustCompile(r)
 
-	totalGames1, totalGames2 := 0, 0
-	totalScore1, totalScore2 := 0, 0
+	games1, games2 := 0, 0
+	score1, score2 := 0, 0
 
 	for _, game := range games {
 		s := re.FindString(game)
@@ -128,37 +128,39 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 		if err != nil {
 			return fmt.Errorf("invalid player1 score format")
 		}
-		totalScore1 += firstPlayerScore
+		score1 += firstPlayerScore
 
 		secondPlayerScore, err := strconv.Atoi(score[1])
 		if err != nil {
 			return fmt.Errorf("invalid player2 score format")
 		}
-		totalScore2 += secondPlayerScore
+		score2 += secondPlayerScore
 
 		if firstPlayerScore > secondPlayerScore {
-			totalGames1++
+			games1++
 		} else if firstPlayerScore < secondPlayerScore {
-			totalGames2++
+			games2++
 		}
 	}
 
-	p1.gamesWon = totalGames1
-	p1.gamesLost = totalGames2
+	log.Println(score1)
 
-	p1.pointsWon = totalScore1
+	p1.gamesWon = games1
+	p1.gamesLost = games2
 
-	p2.gamesWon = totalGames2
-	p2.gamesLost = totalGames1
+	p1.pointsWon = score1
 
-	p2.pointsWon = totalScore2
+	p2.gamesWon = games2
+	p2.gamesLost = games1
+
+	p2.pointsWon = score2
 
 	switch {
-	case totalGames1 > totalGames2:
+	case games1 > games2:
 		p1.matchesWon++
 		p2.matchesLost++
 
-	case totalGames1 < totalGames2:
+	case games1 < games2:
 		p2.matchesWon++
 		p1.matchesLost++
 
@@ -166,8 +168,6 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 		p1.matchesDrawn++
 		p2.matchesDrawn++
 	}
-
-	log.Println("OK")
 
 	return nil
 }
