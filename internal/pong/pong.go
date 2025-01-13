@@ -27,7 +27,7 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		matches_drawn	= matches_drawn + $5,
 		games_won		= games_won + $6,
 		games_lost 		= games_lost + $7,
-		points_won 		= points_won + $8,
+		points_won 		= points_won + $8
 	WHERE slack_id 		= $1 AND channel_id = $2;
 	`
 	var p1, p2 Player
@@ -75,6 +75,7 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		return "", err
 	}
 
+	log.Println("ok")
 	_, err = p.db.Exec(query, p2.userID, p2.channelID,
 		p2.matchesWon,
 		p2.matchesLost,
@@ -118,19 +119,19 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 			return fmt.Errorf("invalid game format %s", game)
 		}
 
-		score := strings.Split(game, "-")
+		scores := strings.Split(game, "-")
 
-		if len(score) != 2 {
+		if len(scores) != 2 {
 			return fmt.Errorf("invalid set format: %s", game)
 		}
 
-		firstPlayerScore, err := strconv.Atoi(score[0])
+		firstPlayerScore, err := strconv.Atoi(scores[0])
 		if err != nil {
 			return fmt.Errorf("invalid player1 score format")
 		}
 		score1 += firstPlayerScore
 
-		secondPlayerScore, err := strconv.Atoi(score[1])
+		secondPlayerScore, err := strconv.Atoi(scores[1])
 		if err != nil {
 			return fmt.Errorf("invalid player2 score format")
 		}
@@ -142,8 +143,6 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 			games2++
 		}
 	}
-
-	log.Println(score1)
 
 	p1.gamesWon = games1
 	p1.gamesLost = games2
