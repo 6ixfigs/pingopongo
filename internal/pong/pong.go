@@ -181,7 +181,7 @@ func formatMatchResponse(p1, p2 Player, games []string, winner string) string {
 		)
 	} else {
 		response = fmt.Sprintf(
-			"Match recorder succesfully:\n<@%s> vs <@%s>\n%sDraw",
+			"Match recorded succesfully:\n<@%s> vs <@%s>\n%sDraw",
 			p1.userID,
 			p2.userID,
 			gamesDetails,
