@@ -3,6 +3,8 @@ package pong
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -20,81 +22,90 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 	query := `
 	UPDATE players
 	SET
-		games_won 	= games_won + $3,
-		games_lost 	= games_lost + $4,
-		games_drawn	= games_drawn + $5,
-		games_won	= games_won + $6,
-		games_lost 	= games_lost + $7,
-		points_won 	= points_won + $8,
-		points_lost = points_lost + $9
-	WHERE slack_id 	= $1 AND channel_id = $2;
+		matches_won 	= matches_won + $3,
+		matches_lost 	= matches_lost + $4,
+		matches_drawn	= matches_drawn + $5,
+		games_won		= games_won + $6,
+		games_lost 		= games_lost + $7,
+		points_won 		= points_won + $8,
+	WHERE slack_id 		= $1 AND channel_id = $2;
 	`
+	var p1, p2 Player
+	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
+	re := regexp.MustCompile(regex)
 
 	commandParts := strings.Split(commandText, " ")
 	if len(commandParts) < 3 {
 		return "", fmt.Errorf("not enough arguments in command")
 	}
 
-	var firstPlayer, secondPlayer Player
+	id1 := re.FindString(commandParts[0])
+	if id1 != "" {
+		p1.userID = strings.Split(strings.TrimPrefix(commandParts[0], "<@"), "|")[0]
+		log.Println(p1.userID)
+		return "", fmt.Errorf("tag user %s", commandParts[0])
+	}
 
-	firstPlayer.userID = strings.Split(strings.TrimPrefix(commandParts[0], "<@"), "|")[0]
-	secondPlayer.userID = strings.Split(strings.TrimPrefix(commandParts[1], "<@"), "|")[0]
+	id2 := re.FindString(commandParts[0])
+	if id2 != "" {
+		p2.userID = strings.Split(strings.TrimPrefix(commandParts[1], "<@"), "|")[0]
+		return "", fmt.Errorf("tag user %s", commandParts[1])
+	}
 
-	firstPlayer.channelID = channelID
-	secondPlayer.channelID = channelID
+	p1.channelID = channelID
+	p2.channelID = channelID
 
 	games := commandParts[2:]
-
-	err := getMatchResult(games, &firstPlayer, &secondPlayer)
-
-	if err != nil {
-		return "", err
-	}
-
-	_, err = p.db.Exec(query, firstPlayer.userID, firstPlayer.channelID,
-		firstPlayer.matchesWon,
-		firstPlayer.matchesLost,
-		firstPlayer.matchesDrawn,
-		firstPlayer.gamesWon,
-		firstPlayer.gamesLost,
-		firstPlayer.pointsWon,
-		firstPlayer.pointsLost)
+	err := processMatchResult(games, &p1, &p2)
 
 	if err != nil {
 		return "", err
 	}
 
-	_, err = p.db.Exec(query, secondPlayer.userID, secondPlayer.channelID,
-		secondPlayer.matchesWon,
-		secondPlayer.matchesLost,
-		secondPlayer.matchesDrawn,
-		secondPlayer.gamesWon,
-		secondPlayer.gamesLost,
-		secondPlayer.pointsWon,
-		secondPlayer.gamesLost)
+	_, err = p.db.Exec(query, p1.userID, p1.channelID,
+		p1.matchesWon,
+		p1.matchesLost,
+		p1.matchesDrawn,
+		p1.gamesWon,
+		p1.gamesLost,
+		p1.pointsWon,
+		p1.pointsLost)
 
 	if err != nil {
 		return "", err
 	}
 
-	winner := firstPlayer.userID
-	if secondPlayer.gamesWon > firstPlayer.gamesWon {
-		winner = secondPlayer.userID
+	_, err = p.db.Exec(query, p2.userID, p2.channelID,
+		p2.matchesWon,
+		p2.matchesLost,
+		p2.matchesDrawn,
+		p2.gamesWon,
+		p2.gamesLost,
+		p2.pointsWon,
+		p2.gamesLost)
+
+	if err != nil {
+		return "", err
+	}
+
+	winner := p1.userID
+	if p2.gamesWon > p1.gamesWon {
+		winner = p2.userID
 	}
 
 	responseText := formatMatchResponse(
-		firstPlayer.userID,
-		secondPlayer.userID,
+		p1.userID,
+		p2.userID,
 		games,
 		winner,
-		firstPlayer.gamesWon,
-		secondPlayer.gamesWon,
+		p1.gamesWon,
+		p2.gamesWon,
 	)
 
 	return responseText, nil
 }
 
-func getMatchResult(games []string, p1, p2 *Player) error {
+func processMatchResult(games []string, p1, p2 *Player) error {
 	firstPlayerGamesWon, secondPlayerGamesWon := 0, 0
 	totalFirstPlayerScore, totalSecondPlayerScore := 0, 0
 

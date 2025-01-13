@@ -11,5 +11,4 @@ type Player struct {
 	gamesWon      int
 	gamesLost     int
 	pointsWon     int
-	pointsLost    int
 }
