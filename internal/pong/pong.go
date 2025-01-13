@@ -15,7 +15,7 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (p *Pong) Leaderboard(channelID string) (string, error) {
+func (pong *Pong) Leaderboard(channelID string) (string, error) {
 	query := `
 		SELECT full_name, matches_won, matches_drawn, matches_lost
 		FROM players
@@ -24,7 +24,7 @@ func (p *Pong) Leaderboard(channelID string) (string, error) {
 		LIMIT 15
 	`
 
-	rows, err := p.db.Query(query, channelID)
+	rows, err := pong.db.Query(query, channelID)
 	if err != nil {
 		return "", err
 	}
