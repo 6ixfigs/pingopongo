@@ -7,8 +7,6 @@ type Player struct {
 	matchesWon    int
 	matchesDrawn  int
 	matchesLost   int
-	setsWon       int
-	setsLost      int
 	currentStreak int
 	gamesWon      int
 	gamesLost     int
