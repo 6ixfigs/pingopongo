@@ -8,12 +8,12 @@ PingyPongy is an application for tracking Ping Pong scores, integrated with Slac
 
 **Description:** Record a match result by specifying the players and the score in each set.
 
-**Command:** `/pingypongy record <player1> <player2> <game1> [games...]`
+**Command:** `/record <player1> <player2> <game1> [games...]`
 
 **Example:**
 
 ```
-/pingypongy record @marc @vukota 11-7 5-11 11-8
+/record @marc @vukota 11-7 5-11 11-8
 ```
 
 **Response:**
@@ -31,7 +31,7 @@ Match recorded successfully:
 
 **Description:** Display the current leaderboard.
 
-**Command:** `/pingypongy leaderboard`
+**Command:** `/leaderboard`
 
 **Response:**
 
@@ -49,9 +49,9 @@ Rank | Player   | Won | Lost | Drawn | Played | Win Ratio
 
 **Description:** View individual player stats like win/loss ratio, matches won/lost, etc.
 
-**Command:** `/pingypongy stats <player>`
+**Command:** `/stats <player>`
 
-**Example:** `/pingypongy stats @marc`
+**Example:** `/stats @marc`
 
 **Response:**
 
@@ -62,6 +62,7 @@ Stats for @marc:
 - Matches Lost: 1
 - Games Won: 11
 - Games Lost: 5
+- Points Won: 72
 - Win Ratio: 83.33%
 - Current Streak: 4 Wins
 ```

@@ -15,7 +15,7 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (pong *Pong) Leaderboard(channelID string) (string, error) {
+func (p *Pong) Leaderboard(channelID string) (string, error) {
 	query := `
 		SELECT full_name, matches_won, matches_drawn, matches_lost
 		FROM players
@@ -24,7 +24,7 @@ func (pong *Pong) Leaderboard(channelID string) (string, error) {
 		LIMIT 15
 	`
 
-	rows, err := pong.db.Query(query, channelID)
+	rows, err := p.db.Query(query, channelID)
 	if err != nil {
 		return "", err
 	}
@@ -33,12 +33,12 @@ func (pong *Pong) Leaderboard(channelID string) (string, error) {
 	var players []player
 
 	for rows.Next() {
-		var p player
+		var player player
 		err = rows.Scan(
-			&p.fullName,
-			&p.matchesWon,
-			&p.matchesDrawn,
-			&p.matchesLost,
+			&player.fullName,
+			&player.matchesWon,
+			&player.matchesDrawn,
+			&player.matchesLost,
 		)
 		if err != nil {
 			return "", err
