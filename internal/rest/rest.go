@@ -65,12 +65,12 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	switch request.command {
 	case "/leaderboard":
-		players, err := s.pong.Leaderboard(request.channelID)
+		leaderboard, err := s.pong.Leaderboard(request.channelID)
 		if err != nil {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-		text = s.formatLeaderboardResponse(players)
+		text = s.formatLeaderboard(leaderboard)
 	default:
 		http.Error(w, "Unsupported command", http.StatusBadRequest)
 		return
@@ -86,10 +86,10 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func (s *Server) formatLeaderboardResponse(players []pong.Player) string {
+func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio"})
-	for rank, player := range players {
+	for rank, player := range leaderboard {
 		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
 		t.AppendRow(table.Row{
 			rank + 1,
@@ -101,7 +101,7 @@ func (s *Server) formatLeaderboardResponse(players []pong.Player) string {
 			fmt.Sprintf("%.2f", float64(player.MatchesWon)/float64(matchesPlayed)*100),
 		})
 	}
-	leaderboard := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
+	text := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
 
-	return leaderboard
+	return text
 }
