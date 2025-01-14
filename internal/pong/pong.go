@@ -50,7 +50,7 @@ func (p *Pong) Record(channelID, commandText string) (*Player, []string, error) 
 	p2.channelID = channelID
 
 	games := args[2:]
-	err := processMatchResult(games, p1, p2)
+	err := processGameResults(games, p1, p2)
 
 	if err != nil {
 		return nil, nil, err
@@ -88,12 +88,9 @@ func (p *Pong) Record(channelID, commandText string) (*Player, []string, error) 
 	return winner, games, nil
 }
 
-func processMatchResult(games []string, p1, p2 *Player) error {
+func processGameResults(games []string, p1, p2 *Player) error {
 	r := `[0-9]+\-[0-9]+`
 	re := regexp.MustCompile(r)
-
-	games1, games2 := 0, 0
-	score1, score2 := 0, 0
 
 	for _, game := range games {
 		score := re.FindString(game)
@@ -112,30 +109,22 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 		if err != nil {
 			return fmt.Errorf("invalid player1 score format")
 		}
-		score1 += firstPlayerScore
+		p1.pointsWon += firstPlayerScore
 
 		secondPlayerScore, err := strconv.Atoi(scores[1])
 		if err != nil {
 			return fmt.Errorf("invalid player2 score format")
 		}
-		score2 += secondPlayerScore
+		p2.pointsWon += secondPlayerScore
 
 		if firstPlayerScore > secondPlayerScore {
-			games1++
+			p1.gamesWon++
+			p2.gamesLost++
 		} else if firstPlayerScore < secondPlayerScore {
-			games2++
+			p2.gamesWon++
+			p1.gamesLost++
 		}
 	}
-
-	p1.gamesWon = games1
-	p1.gamesLost = games2
-
-	p1.pointsWon = score1
-
-	p2.gamesWon = games2
-	p2.gamesLost = games1
-
-	p2.pointsWon = score2
 
 	switch {
 	case p1.gamesWon > p2.gamesWon:
