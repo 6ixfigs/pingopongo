@@ -44,7 +44,7 @@ func (p *Pong) Leaderboard(channelID string) (string, error) {
 			return "", err
 		}
 
-		players = append(players, p)
+		players = append(players, player)
 	}
 
 	if err = rows.Err(); err != nil {
