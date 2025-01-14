@@ -16,7 +16,7 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (p *Pong) Record(channelID, commandText string) (string, error) {
+func (p *Pong) Record(channelID, commandText string) (*Player, []string, error) {
 
 	query := `
 	UPDATE players
@@ -29,37 +29,31 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		points_won 		= points_won + $8
 	WHERE slack_id 		= $1 AND channel_id = $2;
 	`
-	var p1, p2 Player
-	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
-	re := regexp.MustCompile(regex)
+	p1, p2 := &Player{}, &Player{}
 
-	commandParts := strings.Split(commandText, " ")
-	if len(commandParts) < 3 {
-		return "", fmt.Errorf("not enough arguments in command")
+	args := strings.Split(commandText, " ")
+	if len(args) < 3 {
+		return nil, nil, fmt.Errorf("not enough arguments in command")
 	}
 
-	id1 := re.FindString(commandParts[0])
-	if id1 != "" {
-		p1.userID = strings.Split(strings.TrimPrefix(commandParts[0], "<@"), "|")[0]
-	} else {
-		return "", fmt.Errorf("invalid player1 tag %s", commandParts[0])
+	id1 := validateUserTag(args[0])
+	id2 := validateUserTag(args[1])
+
+	if id1 == "" || id2 == "" {
+		return nil, nil, fmt.Errorf("invalid player tags %s, %s", id1, id2)
 	}
 
-	id2 := re.FindString(commandParts[1])
-	if id2 != "" {
-		p2.userID = strings.Split(strings.TrimPrefix(commandParts[1], "<@"), "|")[0]
-	} else {
-		return "", fmt.Errorf("invalid player2 tag %s", commandParts[1])
-	}
+	p1.userID = strings.Split(strings.TrimPrefix(args[0], "<@"), "|")[0]
+	p2.userID = strings.Split(strings.TrimPrefix(args[1], "<@"), "|")[0]
 
 	p1.channelID = channelID
 	p2.channelID = channelID
 
-	games := commandParts[2:]
-	err := processMatchResult(games, &p1, &p2)
+	games := args[2:]
+	err := processMatchResult(games, p1, p2)
 
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	_, err = p.db.Exec(query, p1.userID, p1.channelID,
@@ -71,7 +65,7 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		p1.pointsWon)
 
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	_, err = p.db.Exec(query, p2.userID, p2.channelID,
@@ -83,17 +77,15 @@ func (p *Pong) Record(channelID, commandText string) (string, error) {
 		p2.pointsWon)
 
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
-	winner := p1.userID
+	winner := p1
 	if p2.gamesWon > p1.gamesWon {
-		winner = p2.userID
+		winner = p2
 	}
 
-	responseText := formatMatchResponse(p1, p2, games, winner)
-
-	return responseText, nil
+	return winner, games, nil
 }
 
 func processMatchResult(games []string, p1, p2 *Player) error {
@@ -146,11 +138,11 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 	p2.pointsWon = score2
 
 	switch {
-	case games1 > games2:
+	case p1.gamesWon > p2.gamesWon:
 		p1.matchesWon++
 		p2.matchesLost++
 
-	case games1 < games2:
+	case p1.gamesWon < p2.gamesWon:
 		p2.matchesWon++
 		p1.matchesLost++
 
@@ -162,31 +154,9 @@ func processMatchResult(games []string, p1, p2 *Player) error {
 	return nil
 }
 
-func formatMatchResponse(p1, p2 Player, games []string, winner string) string {
-	var gamesDetails string
-	for i, g := range games {
-		gamesDetails += fmt.Sprintf("- Game %d: %s\n", i+1, g)
-	}
+func validateUserTag(tag string) string {
+	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
+	re := regexp.MustCompile(regex)
 
-	var response string
-	if p1.gamesWon != p2.gamesWon {
-		response = fmt.Sprintf(
-			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
-			p1.userID,
-			p2.userID,
-			gamesDetails,
-			winner,
-			p1.gamesWon,
-			p2.gamesWon,
-		)
-	} else {
-		response = fmt.Sprintf(
-			"Match recorded succesfully:\n<@%s> vs <@%s>\n%sDraw",
-			p1.userID,
-			p2.userID,
-			gamesDetails,
-		)
-	}
-
-	return response
+	return re.FindString(tag)
 }

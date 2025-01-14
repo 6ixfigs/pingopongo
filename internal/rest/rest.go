@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
@@ -64,7 +65,8 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	switch request.command {
 	case "/record":
-		text, err = s.pong.Record(request.channelID, request.text)
+		winner, results, err = s.pong.Record(request.channelID, request.text)
+
 	default:
 		http.Error(w, "Received invalid command", http.StatusBadRequest)
 		return
@@ -83,4 +85,33 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(response)
+}
+
+func formatRecordResponse(p1, p2 *Player, games []string, winner string) string {
+	var gamesDetails string
+	for i, g := range games {
+		gamesDetails += fmt.Sprintf("- Game %d: %s\n", i+1, g)
+	}
+
+	var response string
+	if p1.gamesWon != p2.gamesWon {
+		response = fmt.Sprintf(
+			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
+			p1.userID,
+			p2.userID,
+			gamesDetails,
+			winner,
+			p1.gamesWon,
+			p2.gamesWon,
+		)
+	} else {
+		response = fmt.Sprintf(
+			"Match recorded succesfully:\n<@%s> vs <@%s>\n%sDraw",
+			p1.userID,
+			p2.userID,
+			gamesDetails,
+		)
+	}
+
+	return response
 }
