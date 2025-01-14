@@ -1,8 +1,8 @@
 package pong
 
-type player struct {
-	fullName     string
-	matchesWon   int
-	matchesDrawn int
-	matchesLost  int
+type Player struct {
+	FullName     string
+	MatchesWon   int
+	MatchesDrawn int
+	MatchesLost  int
 }

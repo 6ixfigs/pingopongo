@@ -2,9 +2,6 @@ package pong
 
 import (
 	"database/sql"
-	"fmt"
-
-	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 type Pong struct {
@@ -15,7 +12,7 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (p *Pong) Leaderboard(channelID string) (string, error) {
+func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 	query := `
 		SELECT full_name, matches_won, matches_drawn, matches_lost
 		FROM players
@@ -26,46 +23,30 @@ func (p *Pong) Leaderboard(channelID string) (string, error) {
 
 	rows, err := p.db.Query(query, channelID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer rows.Close()
 
-	var players []player
+	var players []Player
 
 	for rows.Next() {
-		var player player
+		var player Player
 		err = rows.Scan(
-			&player.fullName,
-			&player.matchesWon,
-			&player.matchesDrawn,
-			&player.matchesLost,
+			&player.FullName,
+			&player.MatchesWon,
+			&player.MatchesDrawn,
+			&player.MatchesLost,
 		)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		players = append(players, player)
 	}
 
 	if err = rows.Err(); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	t := table.NewWriter()
-	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio"})
-	for rank, player := range players {
-		matchesPlayed := player.matchesWon + player.matchesDrawn + player.matchesLost
-		t.AppendRow(table.Row{
-			rank + 1,
-			player.fullName,
-			player.matchesWon,
-			player.matchesDrawn,
-			player.matchesLost,
-			matchesPlayed,
-			fmt.Sprintf("%.2f", float64(player.matchesWon)/float64(matchesPlayed)*100),
-		})
-	}
-	leaderboard := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
-
-	return leaderboard, nil
+	return players, nil
 }

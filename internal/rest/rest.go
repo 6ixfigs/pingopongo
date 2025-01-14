@@ -2,12 +2,14 @@ package rest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/6ixfigs/pingypongy/internal/pong"
 	"github.com/go-chi/chi/v5"
+	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 type Server struct {
@@ -60,18 +62,17 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var text string
-	var err error
 
 	switch request.command {
 	case "/leaderboard":
-		text, err = s.pong.Leaderboard(request.channelID)
+		players, err := s.pong.Leaderboard(request.channelID)
+		if err != nil {
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+		text = s.formatLeaderboardResponse(players)
 	default:
 		http.Error(w, "Unsupported command", http.StatusBadRequest)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -83,4 +84,24 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(response)
+}
+
+func (s *Server) formatLeaderboardResponse(players []pong.Player) string {
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio"})
+	for rank, player := range players {
+		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
+		t.AppendRow(table.Row{
+			rank + 1,
+			player.FullName,
+			player.MatchesWon,
+			player.MatchesDrawn,
+			player.MatchesLost,
+			matchesPlayed,
+			fmt.Sprintf("%.2f", float64(player.MatchesWon)/float64(matchesPlayed)*100),
+		})
+	}
+	leaderboard := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
+
+	return leaderboard
 }
