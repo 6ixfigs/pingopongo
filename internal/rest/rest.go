@@ -37,10 +37,10 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/slack/events", s.parse)
+	s.Router.Post("/command", s.command)
 }
 
-func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
+func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -61,14 +61,13 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		r.FormValue("api_app_id"),
 	}
 
-	var result *pong.MatchResult
 	var err error
 	var commandResponse string
 	player := &pong.Player{}
 
 	switch request.command {
 	case "/record":
-		result, err = s.pong.Record(request.channelID, request.teamID, request.text)
+		result, err := s.pong.Record(request.channelID, request.teamID, request.text)
 		if err != nil {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
