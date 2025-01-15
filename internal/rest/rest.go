@@ -60,12 +60,14 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		r.FormValue("api_app_id"),
 	}
 
-	var text string
+	var result *pong.MatchResult
 	var err error
+	var commandResponse string
 
 	switch request.command {
 	case "/record":
-		winner, results, err = s.pong.Record(request.channelID, request.text)
+		result, err = s.pong.Record(request.channelID, request.text)
+		commandResponse = formatRecordResponse(result)
 
 	default:
 		http.Error(w, "Received invalid command", http.StatusBadRequest)
@@ -77,7 +79,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(&SlackResponse{"in_channel", text})
+	response, err := json.Marshal(&SlackResponse{"in_channel", commandResponse})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -87,28 +89,28 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func formatRecordResponse(p1, p2 *Player, games []string, winner string) string {
+func formatRecordResponse(res *pong.MatchResult) string {
 	var gamesDetails string
-	for i, g := range games {
+	for i, g := range res.Games {
 		gamesDetails += fmt.Sprintf("- Game %d: %s\n", i+1, g)
 	}
 
 	var response string
-	if p1.gamesWon != p2.gamesWon {
+	if res.Winner.GamesWon != res.Loser.GamesWon {
 		response = fmt.Sprintf(
 			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
-			p1.userID,
-			p2.userID,
+			res.Winner.UserID,
+			res.Loser.UserID,
 			gamesDetails,
-			winner,
-			p1.gamesWon,
-			p2.gamesWon,
+			res.Winner.UserID,
+			res.Winner.GamesWon,
+			res.Loser.GamesWon,
 		)
 	} else {
 		response = fmt.Sprintf(
 			"Match recorded succesfully:\n<@%s> vs <@%s>\n%sDraw",
-			p1.userID,
-			p2.userID,
+			res.Winner.UserID,
+			res.Loser.UserID,
 			gamesDetails,
 		)
 	}

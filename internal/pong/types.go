@@ -2,13 +2,19 @@ package pong
 
 type Player struct {
 	id            int
-	userID        string
+	UserID        string
 	channelID     string
 	matchesWon    int
 	matchesDrawn  int
 	matchesLost   int
 	currentStreak int
-	gamesWon      int
+	GamesWon      int
 	gamesLost     int
 	pointsWon     int
+}
+
+type MatchResult struct {
+	Winner *Player
+	Loser  *Player
+	Games  []string
 }

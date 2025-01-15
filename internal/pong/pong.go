@@ -16,7 +16,7 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (p *Pong) Record(channelID, commandText string) (*Player, []string, error) {
+func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
 
 	query := `
 	UPDATE players
@@ -31,20 +31,22 @@ func (p *Pong) Record(channelID, commandText string) (*Player, []string, error) 
 	`
 	p1, p2 := &Player{}, &Player{}
 
+	result := &MatchResult{}
+
 	args := strings.Split(commandText, " ")
 	if len(args) < 3 {
-		return nil, nil, fmt.Errorf("not enough arguments in command")
+		return result, fmt.Errorf("not enough arguments in command")
 	}
 
 	id1 := validateUserTag(args[0])
 	id2 := validateUserTag(args[1])
 
 	if id1 == "" || id2 == "" {
-		return nil, nil, fmt.Errorf("invalid player tags %s, %s", id1, id2)
+		return result, fmt.Errorf("invalid player tags %s, %s", id1, id2)
 	}
 
-	p1.userID = strings.Split(strings.TrimPrefix(args[0], "<@"), "|")[0]
-	p2.userID = strings.Split(strings.TrimPrefix(args[1], "<@"), "|")[0]
+	p1.UserID = strings.Split(strings.TrimPrefix(args[0], "<@"), "|")[0]
+	p2.UserID = strings.Split(strings.TrimPrefix(args[1], "<@"), "|")[0]
 
 	p1.channelID = channelID
 	p2.channelID = channelID
@@ -53,39 +55,43 @@ func (p *Pong) Record(channelID, commandText string) (*Player, []string, error) 
 	err := processGameResults(games, p1, p2)
 
 	if err != nil {
-		return nil, nil, err
+		return result, err
 	}
 
-	_, err = p.db.Exec(query, p1.userID, p1.channelID,
+	_, err = p.db.Exec(query, p1.UserID, p1.channelID,
 		p1.matchesWon,
 		p1.matchesLost,
 		p1.matchesDrawn,
-		p1.gamesWon,
+		p1.GamesWon,
 		p1.gamesLost,
 		p1.pointsWon)
 
 	if err != nil {
-		return nil, nil, err
+		return result, err
 	}
 
-	_, err = p.db.Exec(query, p2.userID, p2.channelID,
+	_, err = p.db.Exec(query, p2.UserID, p2.channelID,
 		p2.matchesWon,
 		p2.matchesLost,
 		p2.matchesDrawn,
-		p2.gamesWon,
+		p2.GamesWon,
 		p2.gamesLost,
 		p2.pointsWon)
 
 	if err != nil {
-		return nil, nil, err
+		return result, err
 	}
 
-	winner := p1
-	if p2.gamesWon > p1.gamesWon {
-		winner = p2
+	result.Winner = p1
+	result.Loser = p2
+	if p1.GamesWon < p2.GamesWon {
+		result.Winner = p2
+		result.Loser = p1
 	}
 
-	return winner, games, nil
+	result.Games = games
+
+	return result, nil
 }
 
 func processGameResults(games []string, p1, p2 *Player) error {
@@ -118,20 +124,20 @@ func processGameResults(games []string, p1, p2 *Player) error {
 		p2.pointsWon += secondPlayerScore
 
 		if firstPlayerScore > secondPlayerScore {
-			p1.gamesWon++
+			p1.GamesWon++
 			p2.gamesLost++
 		} else if firstPlayerScore < secondPlayerScore {
-			p2.gamesWon++
+			p2.GamesWon++
 			p1.gamesLost++
 		}
 	}
 
 	switch {
-	case p1.gamesWon > p2.gamesWon:
+	case p1.GamesWon > p2.GamesWon:
 		p1.matchesWon++
 		p2.matchesLost++
 
-	case p1.gamesWon < p2.gamesWon:
+	case p1.GamesWon < p2.GamesWon:
 		p2.matchesWon++
 		p1.matchesLost++
 
