@@ -37,10 +37,10 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/command", s.parse)
+	s.Router.Post("/command", s.command)
 }
 
-func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
+func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
