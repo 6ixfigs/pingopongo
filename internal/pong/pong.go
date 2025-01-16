@@ -3,6 +3,7 @@ package pong
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -17,10 +18,10 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
+func (p *Pong) Record(channelID, workspaceID, commandText string) (*MatchResult, error) {
 	queryInsert := `
-	INSERT INTO players (slack_id, channel_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, points_lost)
-	VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, $9)
+	INSERT INTO players (slack_id, channel_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won)
+	VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8);
 	`
 
 	queryUpdate := `
@@ -56,14 +57,16 @@ func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
 	p1.channelID = channelID
 	p2.channelID = channelID
 
-	exists, err := p.checkUserExists(p1)
+	p1.workspaceID = workspaceID
+	p2.workspaceID = workspaceID
 
+	// check if user1 exists, if not INSERT into db
+	exists, err := p.checkUserExists(p1)
 	if err != nil {
 		return result, err
 	}
-
 	if !exists {
-		err = p.doQuery(queryInsert, p1)
+		_, err = p.db.Exec(queryInsert, p1.UserID, p1.channelID, p1.workspaceID, 0, 0, 0, 0, 0, 0)
 
 		if err != nil {
 			return result, err
@@ -71,15 +74,13 @@ func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
 
 	}
 
+	// check if user2 exists, if not INSERT into db
 	exists, err = p.checkUserExists(p2)
-
 	if err != nil {
 		return result, err
 	}
-
 	if !exists {
-		err = p.doQuery(queryInsert, p2)
-
+		_, err = p.db.Exec(queryInsert, p2.UserID, p2.channelID, p2.workspaceID, 0, 0, 0, 0, 0, 0)
 		if err != nil {
 			return result, err
 		}
@@ -196,12 +197,14 @@ func processGameResults(games []string, p1, p2 *Player) error {
 func (p *Pong) checkUserExists(player *Player) (bool, error) {
 
 	querySelect := `
-	SELECT id FROM players
-	WHERE slack_id = $1
+	SELECT slack_id FROM players
+	WHERE slack_id = $1;
 	`
 
 	var id int
 	err := p.db.QueryRow(querySelect, player.UserID).Scan(&id)
+
+	log.Println(player.UserID)
 
 	if err != nil {
 		return false, err
@@ -212,19 +215,6 @@ func (p *Pong) checkUserExists(player *Player) (bool, error) {
 	}
 
 	return false, nil
-}
-
-func (p *Pong) doQuery(q string, player *Player) error {
-
-	_, err := p.db.Exec(q, player.UserID, player.channelID,
-		player.matchesWon,
-		player.matchesLost,
-		player.matchesDrawn,
-		player.GamesWon,
-		player.gamesLost,
-		player.pointsWon)
-
-	return err
 }
 
 func validateUserTag(tag string) string {
