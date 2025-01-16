@@ -56,11 +56,33 @@ func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
 	p1.channelID = channelID
 	p2.channelID = channelID
 
-	exists1, err := p.checkUserExists(p1)
-	exists2, err := p.checkUserExists(p2)
+	exists, err := p.checkUserExists(p1)
 
-	if !exists1 || !exists2 {
+	if err != nil {
+		return result, err
+	}
 
+	if !exists {
+		err = p.doQuery(queryInsert, p1)
+
+		if err != nil {
+			return result, err
+		}
+
+	}
+
+	exists, err = p.checkUserExists(p2)
+
+	if err != nil {
+		return result, err
+	}
+
+	if !exists {
+		err = p.doQuery(queryInsert, p2)
+
+		if err != nil {
+			return result, err
+		}
 	}
 
 	games := args[2:]
@@ -190,6 +212,19 @@ func (p *Pong) checkUserExists(player *Player) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (p *Pong) doQuery(q string, player *Player) error {
+
+	_, err := p.db.Exec(q, player.UserID, player.channelID,
+		player.matchesWon,
+		player.matchesLost,
+		player.matchesDrawn,
+		player.GamesWon,
+		player.gamesLost,
+		player.pointsWon)
+
+	return err
 }
 
 func validateUserTag(tag string) string {
