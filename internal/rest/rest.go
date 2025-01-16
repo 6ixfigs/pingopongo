@@ -38,6 +38,7 @@ func NewServer() (*Server, error) {
 
 func (s *Server) MountRoutes() {
 	s.Router.Post("/command", s.command)
+	s.Router.Post("/event", s.event)
 }
 
 func (s *Server) command(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +47,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := &SlackRequest{
+	request := &CommandRequest{
 		r.FormValue("team_id"),
 		r.FormValue("team_domain"),
 		r.FormValue("enterprise_id"),
@@ -76,7 +77,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(&SlackResponse{"in_channel", text})
+	response, err := json.Marshal(&CommandResponse{"in_channel", text})
 	if err != nil {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -84,6 +85,10 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(response)
+}
+
+func (s *Server) event(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
