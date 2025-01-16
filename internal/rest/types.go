@@ -1,6 +1,6 @@
 package rest
 
-type SlackRequest struct {
+type CommandRequest struct {
 	teamID         string
 	teamDomain     string
 	enterpriseID   string
@@ -15,7 +15,7 @@ type SlackRequest struct {
 	apiAppID       string
 }
 
-type SlackResponse struct {
+type CommandResponse struct {
 	ResponseType string `json:"response_type"`
 	Text         string `json:"text"`
 }

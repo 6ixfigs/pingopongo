@@ -38,6 +38,7 @@ func NewServer() (*Server, error) {
 
 func (s *Server) MountRoutes() {
 	s.Router.Post("/command", s.command)
+	s.Router.Post("/event", s.event)
 }
 
 func (s *Server) command(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +47,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := &SlackRequest{
+	request := &CommandRequest{
 		r.FormValue("team_id"),
 		r.FormValue("team_domain"),
 		r.FormValue("enterprise_id"),
@@ -63,7 +64,6 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var commandResponse string
-	player := &pong.Player{}
 
 	switch request.command {
 	case "/record":
@@ -75,7 +75,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		commandResponse = formatRecordResponse(result)
 
 	case "/stats":
-		player, err = s.pong.Stats(request.channelID, request.teamID, request.text)
+		player, err := s.pong.Stats(request.channelID, request.teamID, request.text)
 		if err != nil {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -95,7 +95,8 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(&SlackResponse{"in_channel", commandResponse})
+	response, err := json.Marshal(&CommandResponse{"in_channel", commandResponse})
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -144,7 +145,7 @@ func formatStatsResponse(player *pong.Player) string {
 	- Points won: %d
 	- Win ratio: %.2f%%
 	- Current streak: %d
-`
+	`
 
 	return fmt.Sprintf(
 		r,
@@ -159,6 +160,10 @@ func formatStatsResponse(player *pong.Player) string {
 		float32(player.MatchesWon)/float32(player.MatchesWon+player.MatchesLost+player.MatchesDrawn)*100,
 		player.CurrentStreak,
 	)
+}
+
+func (s *Server) event(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
