@@ -163,17 +163,29 @@ func formatStatsResponse(player *pong.Player) string {
 }
 
 func (s *Server) event(w http.ResponseWriter, r *http.Request) {
-	var outerEvent EventRequest
-	if err := json.NewDecoder(r.Body).Decode(&outerEvent); err != nil {
+	var request EventRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		fmt.Printf("err: %v\n", err)
 		return
 	}
 
-	if outerEvent.Type == "url_verification" {
+	if request.Type == "url_verification" {
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(outerEvent.Challenge))
+		w.Write([]byte(request.Challenge))
 		return
 	}
+
+	innerEvent := request.Event
+	var err error
+
+	switch innerEvent["type"] {
+	case "channel_id_changed":
+		err = s.pong.UpdateChannelID(innerEvent["old_channel_id"], innerEvent["new_channel_id"])
+	default:
+		err = fmt.Errorf("unrecognized event")
+	}
+
+	fmt.Printf("err: %v\n", err)
 }
 
 func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
