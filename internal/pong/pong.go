@@ -18,8 +18,12 @@ func New(db *sql.DB) *Pong {
 }
 
 func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
+	queryInsert := `
+	INSERT INTO players (slack_id, channel_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, points_lost)
+	VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, $9)
+	`
 
-	query := `
+	queryUpdate := `
 	UPDATE players
 	SET
 		matches_won 	= matches_won + $3,
@@ -52,14 +56,21 @@ func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
 	p1.channelID = channelID
 	p2.channelID = channelID
 
+	exists1, err := p.checkUserExists(p1)
+	exists2, err := p.checkUserExists(p2)
+
+	if !exists1 || !exists2 {
+
+	}
+
 	games := args[2:]
-	err := processGameResults(games, p1, p2)
+	err = processGameResults(games, p1, p2)
 
 	if err != nil {
 		return result, err
 	}
 
-	_, err = p.db.Exec(query, p1.UserID, p1.channelID,
+	_, err = p.db.Exec(queryUpdate, p1.UserID, p1.channelID,
 		p1.matchesWon,
 		p1.matchesLost,
 		p1.matchesDrawn,
@@ -71,7 +82,7 @@ func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
 		return result, err
 	}
 
-	_, err = p.db.Exec(query, p2.UserID, p2.channelID,
+	_, err = p.db.Exec(queryUpdate, p2.UserID, p2.channelID,
 		p2.matchesWon,
 		p2.matchesLost,
 		p2.matchesDrawn,
@@ -158,6 +169,27 @@ func processGameResults(games []string, p1, p2 *Player) error {
 	}
 
 	return nil
+}
+
+func (p *Pong) checkUserExists(player *Player) (bool, error) {
+
+	querySelect := `
+	SELECT id FROM players
+	WHERE slack_id = $1
+	`
+
+	var id int
+	err := p.db.QueryRow(querySelect, player.UserID).Scan(&id)
+
+	if err != nil {
+		return false, err
+	}
+
+	if err != sql.ErrNoRows {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func validateUserTag(tag string) string {
