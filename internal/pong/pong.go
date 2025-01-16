@@ -3,6 +3,7 @@ package pong
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -95,38 +96,48 @@ func (p *Pong) Record(channelID, commandText string) (*MatchResult, error) {
 }
 
 func processGameResults(games []string, p1, p2 *Player) error {
-	r := `[0-9]+\-[0-9]+`
-	re := regexp.MustCompile(r)
 
 	for _, game := range games {
-		score := re.FindString(game)
 
-		if score == "" {
-			return fmt.Errorf("invalid game format %s", game)
+		// check that score has a valid separator
+		if !strings.Contains(game, "-") {
+			return fmt.Errorf("game %s needs to have '-' separator", game)
 		}
 
 		scores := strings.Split(game, "-")
 
+		// check that both players have a score
 		if len(scores) != 2 {
 			return fmt.Errorf("invalid game format: %s", game)
 		}
 
-		firstPlayerScore, err := strconv.Atoi(scores[0])
+		// check that both scores are numbers
+		score1, err := strconv.Atoi(scores[0])
 		if err != nil {
-			return fmt.Errorf("invalid player1 score format")
+			return fmt.Errorf("player1 score needs to be a number")
 		}
-		p1.pointsWon += firstPlayerScore
 
-		secondPlayerScore, err := strconv.Atoi(scores[1])
+		score2, err := strconv.Atoi(scores[1])
 		if err != nil {
-			return fmt.Errorf("invalid player2 score format")
+			return fmt.Errorf("player2 score needs to be a number")
 		}
-		p2.pointsWon += secondPlayerScore
 
-		if firstPlayerScore > secondPlayerScore {
+		if score1 > 11 || score2 > 11 {
+			if !(math.Abs(float64(score1-score2)) == 2) {
+				return fmt.Errorf("the difference in scores of the game %s should be 2", game)
+			}
+		} else {
+			if score1 != 11 || score2 != 11 {
+				return fmt.Errorf("one of the scores in the game %s should be 11", game)
+			}
+		}
+		p1.pointsWon += score1
+		p2.pointsWon += score2
+
+		if score1 > score2 {
 			p1.GamesWon++
 			p2.gamesLost++
-		} else if firstPlayerScore < secondPlayerScore {
+		} else if score1 < score2 {
 			p2.GamesWon++
 			p1.gamesLost++
 		}
