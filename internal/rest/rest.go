@@ -88,7 +88,19 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) event(w http.ResponseWriter, r *http.Request) {
+	var outerEvent EventRequest
+	if err := json.NewDecoder(r.Body).Decode(&outerEvent); err != nil {
+		fmt.Printf("err: %v\n", err)
+		return
+	}
 
+	switch outerEvent.Type {
+	case "url_verification":
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(outerEvent.Challenge))
+	default:
+		return
+	}
 }
 
 func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
