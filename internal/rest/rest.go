@@ -66,7 +66,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 
 	switch request.command {
 	case "/record":
-		result, err = s.pong.Record(request.channelID, request.text)
+		result, err = s.pong.Record(request.channelID, request.enterpriseID, request.text)
 		commandResponse = formatRecordResponse(result)
 
 	default:

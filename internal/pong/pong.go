@@ -3,7 +3,6 @@ package pong
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -18,25 +17,25 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (p *Pong) Record(channelID, workspaceID, commandText string) (*MatchResult, error) {
+func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult, error) {
 	queryInsert := `
-	INSERT INTO players (slack_id, channel_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won)
-	VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8);
+	INSERT INTO players (slack_id, channel_id, enterprise_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 	`
 
 	queryUpdate := `
 	UPDATE players
 	SET
-		matches_won 	= matches_won + $3,
-		matches_lost 	= matches_lost + $4,
-		matches_drawn	= matches_drawn + $5,
-		games_won		= games_won + $6,
-		games_lost 		= games_lost + $7,
-		points_won 		= points_won + $8
-	WHERE slack_id 		= $1 AND channel_id = $2;
+		matches_won 	= matches_won + $4,
+		matches_lost 	= matches_lost + $5,
+		matches_drawn	= matches_drawn + $6,
+		games_won		= games_won + $7,
+		games_lost 		= games_lost + $8,
+		points_won 		= points_won + $9
+	WHERE slack_id 		= $1 AND channel_id = $2 AND enterprise_ID = $3;
 	`
-	p1, p2 := &Player{}, &Player{}
 
+	p1, p2 := &Player{}, &Player{}
 	result := &MatchResult{}
 
 	args := strings.Split(commandText, " ")
@@ -57,8 +56,8 @@ func (p *Pong) Record(channelID, workspaceID, commandText string) (*MatchResult,
 	p1.channelID = channelID
 	p2.channelID = channelID
 
-	p1.workspaceID = workspaceID
-	p2.workspaceID = workspaceID
+	p1.enterpriseID = enterpriseID
+	p2.enterpriseID = enterpriseID
 
 	// check if user1 exists, if not INSERT into db
 	exists, err := p.checkUserExists(p1)
@@ -66,7 +65,7 @@ func (p *Pong) Record(channelID, workspaceID, commandText string) (*MatchResult,
 		return result, err
 	}
 	if !exists {
-		_, err = p.db.Exec(queryInsert, p1.UserID, p1.channelID, p1.workspaceID, 0, 0, 0, 0, 0, 0)
+		_, err = p.db.Exec(queryInsert, p1.UserID, p1.channelID, p1.enterpriseID, 0, 0, 0, 0, 0, 0)
 
 		if err != nil {
 			return result, err
@@ -80,7 +79,7 @@ func (p *Pong) Record(channelID, workspaceID, commandText string) (*MatchResult,
 		return result, err
 	}
 	if !exists {
-		_, err = p.db.Exec(queryInsert, p2.UserID, p2.channelID, p2.workspaceID, 0, 0, 0, 0, 0, 0)
+		_, err = p.db.Exec(queryInsert, p2.UserID, p2.channelID, p2.enterpriseID, 0, 0, 0, 0, 0, 0)
 		if err != nil {
 			return result, err
 		}
@@ -88,12 +87,11 @@ func (p *Pong) Record(channelID, workspaceID, commandText string) (*MatchResult,
 
 	games := args[2:]
 	err = processGameResults(games, p1, p2)
-
 	if err != nil {
 		return result, err
 	}
 
-	_, err = p.db.Exec(queryUpdate, p1.UserID, p1.channelID,
+	_, err = p.db.Exec(queryUpdate, p1.UserID, p1.channelID, p1.enterpriseID,
 		p1.matchesWon,
 		p1.matchesLost,
 		p1.matchesDrawn,
@@ -105,7 +103,7 @@ func (p *Pong) Record(channelID, workspaceID, commandText string) (*MatchResult,
 		return result, err
 	}
 
-	_, err = p.db.Exec(queryUpdate, p2.UserID, p2.channelID,
+	_, err = p.db.Exec(queryUpdate, p2.UserID, p2.channelID, p2.enterpriseID,
 		p2.matchesWon,
 		p2.matchesLost,
 		p2.matchesDrawn,
@@ -161,10 +159,11 @@ func processGameResults(games []string, p1, p2 *Player) error {
 				return fmt.Errorf("the difference in scores of the game %s should be 2", game)
 			}
 		} else {
-			if score1 != 11 || score2 != 11 {
+			if score1 != 11 && score2 != 11 {
 				return fmt.Errorf("one of the scores in the game %s should be 11", game)
 			}
 		}
+
 		p1.pointsWon += score1
 		p2.pointsWon += score2
 
@@ -197,18 +196,15 @@ func processGameResults(games []string, p1, p2 *Player) error {
 func (p *Pong) checkUserExists(player *Player) (bool, error) {
 
 	querySelect := `
-	SELECT slack_id FROM players
-	WHERE slack_id = $1;
+	SELECT slack_id
+	FROM players
+	WHERE 	slack_id = $1 
+		AND channel_id = $2 
+		AND enterprise_id = $3;
 	`
 
 	var id int
-	err := p.db.QueryRow(querySelect, player.UserID).Scan(&id)
-
-	log.Println(player.UserID)
-
-	if err != nil {
-		return false, err
-	}
+	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.enterpriseID).Scan(&id)
 
 	if err != sql.ErrNoRows {
 		return true, nil
