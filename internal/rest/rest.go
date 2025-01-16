@@ -169,11 +169,9 @@ func (s *Server) event(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch outerEvent.Type {
-	case "url_verification":
+	if outerEvent.Type == "url_verification" {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte(outerEvent.Challenge))
-	default:
 		return
 	}
 }
