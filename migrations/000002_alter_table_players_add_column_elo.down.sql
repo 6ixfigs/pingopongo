@@ -1,2 +1,2 @@
 ALTER TABLE players
-DROP COLUMN 'elo';
+DROP COLUMN elo;
