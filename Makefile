@@ -29,6 +29,9 @@ migrate-down:
 migrate-create:
 	docker compose --profile tools run --rm --user $(UID):$(GID) migrate create -ext sql -dir ./migrations -seq $(name)
 
+migrate-force:
+	docker compose --profile tools run --rm migrate force $(version)
+
 #=================================#
 #===    CONNECT TO DATABASE    ===#
 #=================================#
