@@ -386,6 +386,7 @@ func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 			&player.MatchesWon,
 			&player.MatchesDrawn,
 			&player.MatchesLost,
+			&player.Elo,
 		)
 		if err != nil {
 			return nil, err
@@ -414,4 +415,33 @@ func (p *Pong) UpdateChannelID(oldID, newID string) error {
 	}
 
 	return nil
+}
+
+func (p *Pong) UpdateElo(winner, loser *Player, isDraw bool) {
+	qW := math.Pow(10, float64(winner.Elo)/400)
+	qL := math.Pow(10, float64(loser.Elo)/400)
+
+	eW := qW / (qW + qL)
+	eL := qL / (qW + qL)
+
+	kFactor := func(rating int) float64 {
+		if rating < 2100 {
+			return 32
+		}
+		if rating >= 2100 && rating < 2400 {
+			return 24
+		}
+		return 16
+	}
+
+	kW := kFactor(winner.Elo)
+	kL := kFactor(loser.Elo)
+
+	sW, sL := 1.0, 0.0
+	if isDraw {
+		sW, sL = 0.5, 0.5
+	}
+
+	winner.Elo = winner.Elo + int(math.Round(kW*(sW-eW)))
+	loser.Elo = loser.Elo + int(math.Round(kL*(sL-eL)))
 }

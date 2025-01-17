@@ -2,7 +2,7 @@ package pong
 
 type Player struct {
 	id            int
-  FullName      string
+	FullName      string
 	UserID        string
 	channelID     string
 	teamID        string
@@ -13,6 +13,7 @@ type Player struct {
 	GamesWon      int
 	GamesLost     int
 	PointsWon     int
+	Elo           int
 }
 
 type MatchResult struct {
