@@ -228,17 +228,12 @@ func processGameResults(games []string, p1, p2 *Player) error {
 
 func (p *Pong) checkUserExists(player *Player) (bool, error) {
 
-	querySelect := `
-	SELECT id
-	FROM players
-	WHERE 	user_id		= $1 
-		AND channel_id 	= $2 
-		AND team_id 	= $3;
-	`
+	v, err := p.getPlayerValue(player, "id")
+	if err != nil {
+		return false, fmt.Errorf("error accessing player")
+	}
 
-	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&player.id)
-
-	if err != sql.ErrNoRows {
+	if _, ok := v.(int64); ok {
 		return true, nil
 	}
 
