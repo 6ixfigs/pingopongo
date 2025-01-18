@@ -3,6 +3,7 @@ package pong
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -17,9 +18,9 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db}
 }
 
-func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult, error) {
+func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, error) {
 	queryInsert := `
-	INSERT INTO players (slack_id, channel_id, enterprise_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won)
+	INSERT INTO players (user_id, channel_id, team_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 	`
 
@@ -32,7 +33,7 @@ func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult
 		games_won		= games_won + $7,
 		games_lost 		= games_lost + $8,
 		points_won 		= points_won + $9
-	WHERE slack_id 		= $1 AND channel_id = $2 AND enterprise_ID = $3;
+	WHERE user_id 		= $1 AND channel_id = $2 AND team_id = $3;
 	`
 
 	p1, p2 := &Player{}, &Player{}
@@ -43,21 +44,18 @@ func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult
 		return result, fmt.Errorf("not enough arguments in command")
 	}
 
-	id1 := validateUserTag(args[0])
-	id2 := validateUserTag(args[1])
+	getUserID(p1, args[1])
+	getUserID(p2, args[0])
 
-	if id1 == "" || id2 == "" {
-		return result, fmt.Errorf("invalid player tags %s, %s", id1, id2)
+	if p1.UserID == "" || p2.UserID == "" {
+		return result, fmt.Errorf("invalid player tags %s, %s", p1.UserID, p2.UserID)
 	}
-
-	p1.UserID = strings.Split(strings.TrimPrefix(args[0], "<@"), "|")[0]
-	p2.UserID = strings.Split(strings.TrimPrefix(args[1], "<@"), "|")[0]
 
 	p1.channelID = channelID
 	p2.channelID = channelID
 
-	p1.enterpriseID = enterpriseID
-	p2.enterpriseID = enterpriseID
+	p1.teamID = teamID
+	p2.teamID = teamID
 
 	// check if user1 exists, if not INSERT into db
 	exists, err := p.checkUserExists(p1)
@@ -65,7 +63,7 @@ func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult
 		return result, err
 	}
 	if !exists {
-		_, err = p.db.Exec(queryInsert, p1.UserID, p1.channelID, p1.enterpriseID, 0, 0, 0, 0, 0, 0)
+		_, err = p.db.Exec(queryInsert, p1.UserID, p1.channelID, p1.teamID, 0, 0, 0, 0, 0, 0)
 
 		if err != nil {
 			return result, err
@@ -79,7 +77,7 @@ func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult
 		return result, err
 	}
 	if !exists {
-		_, err = p.db.Exec(queryInsert, p2.UserID, p2.channelID, p2.enterpriseID, 0, 0, 0, 0, 0, 0)
+		_, err = p.db.Exec(queryInsert, p2.UserID, p2.channelID, p2.teamID, 0, 0, 0, 0, 0, 0)
 		if err != nil {
 			return result, err
 		}
@@ -87,11 +85,12 @@ func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult
 
 	games := args[2:]
 	err = processGameResults(games, p1, p2)
+	log.Println(p1.GamesWon)
 	if err != nil {
 		return result, err
 	}
 
-	_, err = p.db.Exec(queryUpdate, p1.UserID, p1.channelID, p1.enterpriseID,
+	_, err = p.db.Exec(queryUpdate, p1.UserID, p1.channelID, p1.teamID,
 		p1.matchesWon,
 		p1.matchesLost,
 		p1.matchesDrawn,
@@ -103,7 +102,7 @@ func (p *Pong) Record(channelID, enterpriseID, commandText string) (*MatchResult
 		return result, err
 	}
 
-	_, err = p.db.Exec(queryUpdate, p2.UserID, p2.channelID, p2.enterpriseID,
+	_, err = p.db.Exec(queryUpdate, p2.UserID, p2.channelID, p2.teamID,
 		p2.matchesWon,
 		p2.matchesLost,
 		p2.matchesDrawn,
@@ -196,15 +195,15 @@ func processGameResults(games []string, p1, p2 *Player) error {
 func (p *Pong) checkUserExists(player *Player) (bool, error) {
 
 	querySelect := `
-	SELECT slack_id
+	SELECT user_id
 	FROM players
-	WHERE 	slack_id = $1 
+	WHERE 	user_id = $1 
 		AND channel_id = $2 
-		AND enterprise_id = $3;
+		AND team_id = $3;
 	`
 
-	var id int
-	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.enterpriseID).Scan(&id)
+	var id string
+	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&id)
 
 	if err != sql.ErrNoRows {
 		return true, nil
@@ -218,4 +217,13 @@ func validateUserTag(tag string) string {
 	re := regexp.MustCompile(regex)
 
 	return re.FindString(tag)
+}
+
+func getUserID(p *Player, tag string) {
+	v := validateUserTag(tag)
+
+	if v != "" {
+		p.UserID = strings.Split(strings.TrimPrefix(v, "<@"), "|")[0]
+	}
+
 }

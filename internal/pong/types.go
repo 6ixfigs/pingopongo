@@ -4,7 +4,7 @@ type Player struct {
 	id            int
 	UserID        string
 	channelID     string
-	enterpriseID  string
+	teamID        string
 	matchesWon    int
 	matchesDrawn  int
 	matchesLost   int
