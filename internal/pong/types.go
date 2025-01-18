@@ -5,13 +5,13 @@ type Player struct {
 	UserID        string
 	channelID     string
 	teamID        string
-	matchesWon    int
-	matchesDrawn  int
-	matchesLost   int
-	currentStreak int
+	MatchesWon    int
+	MatchesDrawn  int
+	MatchesLost   int
+	CurrentStreak int
 	GamesWon      int
-	gamesLost     int
-	pointsWon     int
+	GamesLost     int
+	PointsWon     int
 }
 
 type MatchResult struct {

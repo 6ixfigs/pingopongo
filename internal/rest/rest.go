@@ -63,6 +63,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	var result *pong.MatchResult
 	var err error
 	var commandResponse string
+	player := &pong.Player{}
 
 	switch request.command {
 	case "/record":
@@ -70,7 +71,8 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		commandResponse = formatRecordResponse(result)
 
 	case "/stats":
-
+		player, err = s.pong.Stats(request.channelID, request.teamID, request.text)
+		commandResponse = formatStatsResponse(player)
 	default:
 		http.Error(w, "Received invalid command", http.StatusBadRequest)
 		return
@@ -118,4 +120,32 @@ func formatRecordResponse(res *pong.MatchResult) string {
 	}
 
 	return response
+}
+
+func formatStatsResponse(player *pong.Player) string {
+	r := `Stats for <@%s>:
+	- Matches played: %d
+	- Matches won: %d
+	- Matches lost: %d
+	- Matches drawn: %d
+	- Games won: %d
+	- Games lost: %d
+	- Points won: %d
+	- Win ratio: %.2f%%
+	- Current streak: %d
+`
+
+	return fmt.Sprintf(
+		r,
+		player.UserID,
+		player.MatchesWon+player.MatchesLost+player.MatchesDrawn,
+		player.MatchesWon,
+		player.MatchesLost,
+		player.MatchesDrawn,
+		player.GamesWon,
+		player.GamesLost,
+		player.PointsWon,
+		float32(player.MatchesWon)/float32(player.MatchesWon+player.MatchesLost+player.MatchesDrawn)*100,
+		player.CurrentStreak,
+	)
 }

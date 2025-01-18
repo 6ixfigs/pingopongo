@@ -3,6 +3,7 @@ package pong
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -90,26 +91,26 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	}
 
 	_, err = p.db.Exec(queryUpdate, p1.UserID, p1.channelID, p1.teamID,
-		p1.matchesWon,
-		p1.matchesLost,
-		p1.matchesDrawn,
+		p1.MatchesWon,
+		p1.MatchesLost,
+		p1.MatchesDrawn,
 		p1.GamesWon,
-		p1.gamesLost,
-		p1.pointsWon,
-		p1.currentStreak)
+		p1.GamesLost,
+		p1.PointsWon,
+		p1.CurrentStreak)
 
 	if err != nil {
 		return result, err
 	}
 
 	_, err = p.db.Exec(queryUpdate, p2.UserID, p2.channelID, p2.teamID,
-		p2.matchesWon,
-		p2.matchesLost,
-		p2.matchesDrawn,
+		p2.MatchesWon,
+		p2.MatchesLost,
+		p2.MatchesDrawn,
 		p2.GamesWon,
-		p2.gamesLost,
-		p2.pointsWon,
-		p2.currentStreak)
+		p2.GamesLost,
+		p2.PointsWon,
+		p2.CurrentStreak)
 
 	if err != nil {
 		return result, err
@@ -164,36 +165,36 @@ func processGameResults(games []string, p1, p2 *Player) error {
 			}
 		}
 
-		p1.pointsWon += score1
-		p2.pointsWon += score2
+		p1.PointsWon += score1
+		p2.PointsWon += score2
 
 		if score1 > score2 {
 			p1.GamesWon++
-			p2.gamesLost++
+			p2.GamesLost++
 		} else if score1 < score2 {
 			p2.GamesWon++
-			p1.gamesLost++
+			p1.GamesLost++
 		}
 	}
 
 	switch {
 	case p1.GamesWon > p2.GamesWon:
-		p1.matchesWon++
-		p2.matchesLost++
-		p1.currentStreak++
-		p2.currentStreak = 0
+		p1.MatchesWon++
+		p2.MatchesLost++
+		p1.CurrentStreak++
+		p2.CurrentStreak = 0
 
 	case p1.GamesWon < p2.GamesWon:
-		p2.matchesWon++
-		p1.matchesLost++
-		p1.currentStreak = 0
-		p2.currentStreak++
+		p2.MatchesWon++
+		p1.MatchesLost++
+		p1.CurrentStreak = 0
+		p2.CurrentStreak++
 
 	default:
-		p1.matchesDrawn++
-		p2.matchesDrawn++
-		p1.currentStreak = 0
-		p2.currentStreak = 0
+		p1.MatchesDrawn++
+		p2.MatchesDrawn++
+		p1.CurrentStreak = 0
+		p2.CurrentStreak = 0
 	}
 
 	return nil
@@ -210,7 +211,7 @@ func (p *Pong) checkUserExists(player *Player) (bool, error) {
 	`
 
 	// only select current streak because that is the only value in the players table which can decrease after a match is played
-	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&player.currentStreak)
+	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&player.CurrentStreak)
 
 	if err != sql.ErrNoRows {
 		return true, nil
@@ -232,5 +233,50 @@ func getUserID(p *Player, tag string) {
 	if v != "" {
 		p.UserID = strings.Split(strings.TrimPrefix(v, "<@"), "|")[0]
 	}
+
+}
+
+func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
+
+	querySelect := `
+	SELECT matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, current_streak
+	FROM players
+	WHERE 	user_id		= $1
+		AND channel_id 	= $2
+		AND team_id		= $3
+	`
+
+	player := &Player{channelID: channelID, teamID: teamID}
+	args := strings.Split(commandText, " ")
+	log.Println(commandText)
+
+	if len(args) != 1 {
+		return nil, fmt.Errorf("/stats command should have exactly 1 argument, the player tag")
+	}
+
+	log.Println(args[0])
+
+	getUserID(player, args[0])
+
+	row := p.db.QueryRow(
+		querySelect,
+		player.UserID,
+		player.channelID,
+		player.teamID,
+	).Scan(
+		&player.MatchesWon,
+		&player.MatchesLost,
+		&player.MatchesDrawn,
+		&player.GamesWon,
+		&player.GamesLost,
+		&player.PointsWon,
+		&player.CurrentStreak,
+	)
+
+	if row != sql.ErrNoRows {
+		return player, nil
+	}
+
+	return &Player{}, nil
 
 }
