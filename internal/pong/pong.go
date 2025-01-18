@@ -3,7 +3,6 @@ package pong
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -20,8 +19,8 @@ func New(db *sql.DB) *Pong {
 
 func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, error) {
 	queryInsert := `
-	INSERT INTO players (user_id, channel_id, team_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+	INSERT INTO players (user_id, channel_id, team_id, matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, current_streak)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 	`
 
 	queryUpdate := `
@@ -32,7 +31,8 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		matches_drawn	= matches_drawn + $6,
 		games_won		= games_won + $7,
 		games_lost 		= games_lost + $8,
-		points_won 		= points_won + $9
+		points_won 		= points_won + $9,
+		current_streak	= $10
 	WHERE user_id 		= $1 AND channel_id = $2 AND team_id = $3;
 	`
 
@@ -63,7 +63,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return result, err
 	}
 	if !exists {
-		_, err = p.db.Exec(queryInsert, p1.UserID, p1.channelID, p1.teamID, 0, 0, 0, 0, 0, 0)
+		_, err = p.db.Exec(queryInsert, p1.UserID, p1.channelID, p1.teamID, 0, 0, 0, 0, 0, 0, 0)
 
 		if err != nil {
 			return result, err
@@ -77,7 +77,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return result, err
 	}
 	if !exists {
-		_, err = p.db.Exec(queryInsert, p2.UserID, p2.channelID, p2.teamID, 0, 0, 0, 0, 0, 0)
+		_, err = p.db.Exec(queryInsert, p2.UserID, p2.channelID, p2.teamID, 0, 0, 0, 0, 0, 0, 0)
 		if err != nil {
 			return result, err
 		}
@@ -85,7 +85,6 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 	games := args[2:]
 	err = processGameResults(games, p1, p2)
-	log.Println(p1.GamesWon)
 	if err != nil {
 		return result, err
 	}
@@ -96,7 +95,8 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		p1.matchesDrawn,
 		p1.GamesWon,
 		p1.gamesLost,
-		p1.pointsWon)
+		p1.pointsWon,
+		p1.currentStreak)
 
 	if err != nil {
 		return result, err
@@ -108,7 +108,8 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		p2.matchesDrawn,
 		p2.GamesWon,
 		p2.gamesLost,
-		p2.pointsWon)
+		p2.pointsWon,
+		p2.currentStreak)
 
 	if err != nil {
 		return result, err
@@ -179,14 +180,20 @@ func processGameResults(games []string, p1, p2 *Player) error {
 	case p1.GamesWon > p2.GamesWon:
 		p1.matchesWon++
 		p2.matchesLost++
+		p1.currentStreak++
+		p2.currentStreak = 0
 
 	case p1.GamesWon < p2.GamesWon:
 		p2.matchesWon++
 		p1.matchesLost++
+		p1.currentStreak = 0
+		p2.currentStreak++
 
 	default:
 		p1.matchesDrawn++
 		p2.matchesDrawn++
+		p1.currentStreak = 0
+		p2.currentStreak = 0
 	}
 
 	return nil
@@ -195,15 +202,15 @@ func processGameResults(games []string, p1, p2 *Player) error {
 func (p *Pong) checkUserExists(player *Player) (bool, error) {
 
 	querySelect := `
-	SELECT user_id
+	SELECT current_streak
 	FROM players
 	WHERE 	user_id = $1 
 		AND channel_id = $2 
 		AND team_id = $3;
 	`
 
-	var id string
-	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&id)
+	// only select current streak because that is the only value in the players table which can decrease after a match is played
+	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&player.currentStreak)
 
 	if err != sql.ErrNoRows {
 		return true, nil

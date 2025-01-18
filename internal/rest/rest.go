@@ -69,6 +69,8 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		result, err = s.pong.Record(request.channelID, request.teamID, request.text)
 		commandResponse = formatRecordResponse(result)
 
+	case "/stats":
+
 	default:
 		http.Error(w, "Received invalid command", http.StatusBadRequest)
 		return
