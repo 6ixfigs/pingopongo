@@ -205,9 +205,9 @@ func (p *Pong) checkUserExists(player *Player) (bool, error) {
 	querySelect := `
 	SELECT current_streak
 	FROM players
-	WHERE 	user_id = $1 
-		AND channel_id = $2 
-		AND team_id = $3;
+	WHERE 	user_id		= $1 
+		AND channel_id 	= $2 
+		AND team_id 	= $3;
 	`
 
 	// only select current streak because that is the only value in the players table which can decrease after a match is played
@@ -219,6 +219,40 @@ func (p *Pong) checkUserExists(player *Player) (bool, error) {
 
 	return false, nil
 }
+
+func (p *Pong) getPlayerValue(player *Player, columnName string) (interface{}, error) {
+	allowedColumns := map[string]bool{
+		"matches_won":  true,
+		"matches_lost": true,
+		"matches_drawn": true,
+		"games_won":    true,
+		"games_lost":   true,
+		"points_won":   true,
+		"current_streak": true,
+	}
+
+	if !allowedColumns[columnName] {
+		return nil, fmt.Errorf("invalid column name: %s", columnName)
+	}
+
+	// Construct the query dynamically but safely.
+	querySelect := fmt.Sprintf(`
+		SELECT %s
+		FROM players
+		WHERE user_id = $1 
+		  AND channel_id = $2 
+		  AND team_id = $3;
+	`, columnName)
+
+	var result interface{}
+	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 
 func validateUserTag(tag string) string {
 	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
@@ -279,4 +313,26 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 
 	return &Player{}, nil
 
+}
+
+func (p *Pong) storeMatchDetails(p1, p2 *Player) error {
+
+	querySelectPlayer = `
+		SELECT id
+		FROM players
+		WHERE 	user_id 	= $1
+			AND channel_id	= $2
+			AND team_id		= $3;
+	`
+
+	r, err := p.db.QueryRow(querySelectPlayer, p1.)
+
+	queryInsertMatch = `
+		INSERT INTO match_history
+		VALUES (player_id_1, player_id_2, games_won_1, games_won_2);
+	`
+
+	_, err := p.db.Exec(queryInsert, p1.)
+
+	return nil
 }
