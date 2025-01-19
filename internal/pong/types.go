@@ -25,5 +25,6 @@ type GameResult struct {
 type MatchResult struct {
 	Winner *Player
 	Loser  *Player
+	IsDraw bool
 	Games  []GameResult
 }
