@@ -16,8 +16,14 @@ type Player struct {
 	Elo           int
 }
 
+type GameResult struct {
+	winner   *Player
+	p1Points int
+	p2Points int
+}
+
 type MatchResult struct {
 	Winner *Player
 	Loser  *Player
-	Games  []string
+	Games  []GameResult
 }
