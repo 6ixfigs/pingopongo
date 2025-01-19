@@ -3,6 +3,7 @@ package pong
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -83,6 +84,27 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		}
 	}
 
+	v, err := p.getPlayerValue(p1, "current_streak")
+	if err != nil {
+		return result, err
+	}
+	// unfortunatelly have to check for int64 because of SQL ...
+	if streak, ok := v.(int64); ok {
+		p1.CurrentStreak = int(streak)
+	} else {
+		return result, fmt.Errorf("current_streak of player2 isn't an int")
+	}
+
+	v, err = p.getPlayerValue(p2, "current_streak")
+	if err != nil {
+		return result, err
+	}
+	if streak, ok := v.(int64); ok {
+		p2.CurrentStreak = int(streak)
+	} else {
+		return result, fmt.Errorf("current_streak of player2 isn't an int")
+	}
+
 	games := args[2:]
 	err = processGameResults(games, p1, p2)
 	if err != nil {
@@ -90,26 +112,26 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	}
 
 	_, err = p.db.Exec(queryUpdate, p1.UserID, p1.channelID, p1.teamID,
-		p1.matchesWon,
-		p1.matchesLost,
-		p1.matchesDrawn,
+		p1.MatchesWon,
+		p1.MatchesLost,
+		p1.MatchesDrawn,
 		p1.GamesWon,
-		p1.gamesLost,
-		p1.pointsWon,
-		p1.currentStreak)
+		p1.GamesLost,
+		p1.PointsWon,
+		p1.CurrentStreak)
 
 	if err != nil {
 		return result, err
 	}
 
 	_, err = p.db.Exec(queryUpdate, p2.UserID, p2.channelID, p2.teamID,
-		p2.matchesWon,
-		p2.matchesLost,
-		p2.matchesDrawn,
+		p2.MatchesWon,
+		p2.MatchesLost,
+		p2.MatchesDrawn,
 		p2.GamesWon,
-		p2.gamesLost,
-		p2.pointsWon,
-		p2.currentStreak)
+		p2.GamesLost,
+		p2.PointsWon,
+		p2.CurrentStreak)
 
 	if err != nil {
 		return result, err
@@ -120,6 +142,11 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	if p1.GamesWon < p2.GamesWon {
 		result.Winner = p2
 		result.Loser = p1
+	}
+
+	err = p.storeMatchDetails(p1, p2)
+	if err != nil {
+		return result, err
 	}
 
 	result.Games = games
@@ -164,36 +191,36 @@ func processGameResults(games []string, p1, p2 *Player) error {
 			}
 		}
 
-		p1.pointsWon += score1
-		p2.pointsWon += score2
+		p1.PointsWon += score1
+		p2.PointsWon += score2
 
 		if score1 > score2 {
 			p1.GamesWon++
-			p2.gamesLost++
+			p2.GamesLost++
 		} else if score1 < score2 {
 			p2.GamesWon++
-			p1.gamesLost++
+			p1.GamesLost++
 		}
 	}
 
 	switch {
 	case p1.GamesWon > p2.GamesWon:
-		p1.matchesWon++
-		p2.matchesLost++
-		p1.currentStreak++
-		p2.currentStreak = 0
+		p1.MatchesWon++
+		p2.MatchesLost++
+		p1.CurrentStreak++
+		p2.CurrentStreak = 0
 
 	case p1.GamesWon < p2.GamesWon:
-		p2.matchesWon++
-		p1.matchesLost++
-		p1.currentStreak = 0
-		p2.currentStreak++
+		p2.MatchesWon++
+		p1.MatchesLost++
+		p1.CurrentStreak = 0
+		p2.CurrentStreak++
 
 	default:
-		p1.matchesDrawn++
-		p2.matchesDrawn++
-		p1.currentStreak = 0
-		p2.currentStreak = 0
+		p1.MatchesDrawn++
+		p2.MatchesDrawn++
+		p1.CurrentStreak = 0
+		p2.CurrentStreak = 0
 	}
 
 	return nil
@@ -201,22 +228,49 @@ func processGameResults(games []string, p1, p2 *Player) error {
 
 func (p *Pong) checkUserExists(player *Player) (bool, error) {
 
-	querySelect := `
-	SELECT current_streak
-	FROM players
-	WHERE 	user_id = $1 
-		AND channel_id = $2 
-		AND team_id = $3;
-	`
+	v, err := p.getPlayerValue(player, "id")
+	if err != nil {
+		return false, fmt.Errorf("error accessing player")
+	}
 
-	// only select current streak because that is the only value in the players table which can decrease after a match is played
-	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&player.currentStreak)
-
-	if err != sql.ErrNoRows {
+	if _, ok := v.(int64); ok {
 		return true, nil
 	}
 
 	return false, nil
+}
+
+func (p *Pong) getPlayerValue(player *Player, columnName string) (interface{}, error) {
+	allowedColumns := map[string]bool{
+		"id":             true,
+		"matches_won":    true,
+		"matches_lost":   true,
+		"matches_drawn":  true,
+		"games_won":      true,
+		"games_lost":     true,
+		"points_won":     true,
+		"current_streak": true,
+	}
+
+	if !allowedColumns[columnName] {
+		return nil, fmt.Errorf("invalid column name: %s", columnName)
+	}
+
+	querySelect := fmt.Sprintf(`
+		SELECT %s
+		FROM players
+		WHERE user_id 		= $1 
+		  AND channel_id 	= $2 
+		  AND team_id 		= $3;
+	`, columnName)
+
+	var v interface{}
+	err := p.db.QueryRow(querySelect, player.UserID, player.channelID, player.teamID).Scan(&v)
+	if err != sql.ErrNoRows {
+		return v, nil
+	}
+
+	return nil, nil
 }
 
 func validateUserTag(tag string) string {
@@ -233,4 +287,81 @@ func getUserID(p *Player, tag string) {
 		p.UserID = strings.Split(strings.TrimPrefix(v, "<@"), "|")[0]
 	}
 
+}
+
+func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
+
+	querySelect := `
+	SELECT matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, current_streak
+	FROM players
+	WHERE 	user_id		= $1
+		AND channel_id 	= $2
+		AND team_id		= $3
+	`
+
+	player := &Player{channelID: channelID, teamID: teamID}
+	args := strings.Split(commandText, " ")
+	log.Println(commandText)
+
+	if len(args) != 1 {
+		return nil, fmt.Errorf("/stats command should have exactly 1 argument, the player tag")
+	}
+
+	log.Println(args[0])
+
+	getUserID(player, args[0])
+
+	row := p.db.QueryRow(
+		querySelect,
+		player.UserID,
+		player.channelID,
+		player.teamID,
+	).Scan(
+		&player.MatchesWon,
+		&player.MatchesLost,
+		&player.MatchesDrawn,
+		&player.GamesWon,
+		&player.GamesLost,
+		&player.PointsWon,
+		&player.CurrentStreak,
+	)
+
+	if row != sql.ErrNoRows {
+		return player, nil
+	}
+
+	return &Player{}, nil
+
+}
+
+func (p *Pong) storeMatchDetails(p1, p2 *Player) error {
+	v, err := p.getPlayerValue(p1, "id")
+	if err != nil {
+		return err
+	}
+	id1, ok := v.(int64)
+	if !ok {
+		return fmt.Errorf("id from p1 isn't an int")
+	}
+
+	v, err = p.getPlayerValue(p2, "id")
+	if err != nil {
+		return err
+	}
+	id2, ok := v.(int64)
+	if !ok {
+		return fmt.Errorf("id from p2 isn't an int")
+	}
+
+	queryInsertMatch := `
+		INSERT INTO match_history (player_id_1, player_id_2, games_won_1, games_won_2)
+		VALUES ($1, $2, $3, $4);
+	`
+
+	_, err = p.db.Exec(queryInsertMatch, id1, id2, p1.GamesWon, p2.GamesWon)
+	if err != nil {
+		return fmt.Errorf("failed to insert match details: %w", err)
+	}
+
+	return nil
 }
