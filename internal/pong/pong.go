@@ -400,3 +400,18 @@ func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 
 	return players, nil
 }
+
+func (p *Pong) UpdateChannelID(oldID, newID string) error {
+	query := `
+	UPDATE players
+	SET channel_id = $1
+	WHERE channel_id = $2
+	`
+
+	_, err := p.db.Exec(query, newID, oldID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -37,16 +37,17 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/slack/events", s.parse)
+	s.Router.Post("/command", s.command)
+	s.Router.Post("/event", s.event)
 }
 
-func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
+func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	request := &SlackRequest{
+	request := &CommandRequest{
 		r.FormValue("team_id"),
 		r.FormValue("team_domain"),
 		r.FormValue("enterprise_id"),
@@ -61,27 +62,25 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 		r.FormValue("api_app_id"),
 	}
 
-	var result *pong.MatchResult
 	var err error
-	var commandResponse string
-	player := &pong.Player{}
+	var responseText string
 
 	switch request.command {
 	case "/record":
-		result, err = s.pong.Record(request.channelID, request.teamID, request.text)
+		result, err := s.pong.Record(request.channelID, request.teamID, request.text)
 		if err != nil {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-		commandResponse = formatRecordResponse(result)
+		responseText = formatMatchResult(result)
 
 	case "/stats":
-		player, err = s.pong.Stats(request.channelID, request.teamID, request.text)
+		player, err := s.pong.Stats(request.channelID, request.teamID, request.text)
 		if err != nil {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-		commandResponse = formatStatsResponse(player)
+		responseText = formatStats(player)
 
 	case "/leaderboard":
 		leaderboard, err := s.pong.Leaderboard(request.channelID)
@@ -89,14 +88,14 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-		commandResponse = s.formatLeaderboard(leaderboard)
+		responseText = formatLeaderboard(leaderboard)
 
 	default:
 		http.Error(w, "Unsupported command", http.StatusBadRequest)
 		return
 	}
 
-	response, err := json.Marshal(&SlackResponse{"in_channel", commandResponse})
+	response, err := json.Marshal(&CommandResponse{"in_channel", responseText})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -105,28 +104,54 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-func formatRecordResponse(res *pong.MatchResult) string {
+func (s *Server) event(w http.ResponseWriter, r *http.Request) {
+	var request EventRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		fmt.Printf("err: %v\n", err)
+		return
+	}
+
+	if request.Type == "url_verification" {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(request.Challenge))
+		return
+	}
+
+	innerEvent := request.Event
+	var err error
+
+	switch innerEvent["type"] {
+	case "channel_id_changed":
+		err = s.pong.UpdateChannelID(innerEvent["old_channel_id"], innerEvent["new_channel_id"])
+	default:
+		err = fmt.Errorf("unrecognized event")
+	}
+
+	fmt.Printf("err: %v\n", err)
+}
+
+func formatMatchResult(result *pong.MatchResult) string {
 	var gamesDetails string
-	for i, g := range res.Games {
+	for i, g := range result.Games {
 		gamesDetails += fmt.Sprintf("- Game %d: %s\n", i+1, g)
 	}
 
 	var response string
-	if res.Winner.GamesWon != res.Loser.GamesWon {
+	if result.Winner.GamesWon != result.Loser.GamesWon {
 		response = fmt.Sprintf(
 			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
-			res.Winner.UserID,
-			res.Loser.UserID,
+			result.Winner.UserID,
+			result.Loser.UserID,
 			gamesDetails,
-			res.Winner.UserID,
-			res.Winner.GamesWon,
-			res.Loser.GamesWon,
+			result.Winner.UserID,
+			result.Winner.GamesWon,
+			result.Loser.GamesWon,
 		)
 	} else {
 		response = fmt.Sprintf(
 			"Match recorded succesfully:\n<@%s> vs <@%s>\n%sDraw",
-			res.Winner.UserID,
-			res.Loser.UserID,
+			result.Winner.UserID,
+			result.Loser.UserID,
 			gamesDetails,
 		)
 	}
@@ -134,7 +159,7 @@ func formatRecordResponse(res *pong.MatchResult) string {
 	return response
 }
 
-func formatStatsResponse(player *pong.Player) string {
+func formatStats(player *pong.Player) string {
 	r := `Stats for <@%s>:
 	- Matches played: %d
 	- Matches won: %d
@@ -145,24 +170,25 @@ func formatStatsResponse(player *pong.Player) string {
 	- Points won: %d
 	- Win ratio: %.2f%%
 	- Current streak: %d
-`
+	`
 
+	matchesPlayed := player.MatchesWon + player.MatchesLost + player.MatchesDrawn
 	return fmt.Sprintf(
 		r,
 		player.UserID,
-		player.MatchesWon+player.MatchesLost+player.MatchesDrawn,
+		matchesPlayed,
 		player.MatchesWon,
 		player.MatchesLost,
 		player.MatchesDrawn,
 		player.GamesWon,
 		player.GamesLost,
 		player.PointsWon,
-		float32(player.MatchesWon)/float32(player.MatchesWon+player.MatchesLost+player.MatchesDrawn)*100,
+		float64(player.MatchesWon)/float64(matchesPlayed)*100,
 		player.CurrentStreak,
 	)
 }
 
-func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
+func formatLeaderboard(leaderboard []pong.Player) string {
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio"})
 	for rank, player := range leaderboard {
