@@ -11,6 +11,8 @@ GID := $(shell id -g)
 
 up:
 	docker compose up -d --build
+watch:
+	docker compose up --build
 down:
 	docker compose down
 

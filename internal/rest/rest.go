@@ -9,12 +9,13 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/6ixfigs/pingypongy/internal/pong"
 	"github.com/go-chi/chi/v5"
+	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 type Server struct {
 	Router chi.Router
-	pong   *pong.Pong
 	Config *config.Config
+	pong   *pong.Pong
 }
 
 func NewServer() (*Server, error) {
@@ -30,8 +31,8 @@ func NewServer() (*Server, error) {
 
 	return &Server{
 		Router: chi.NewRouter(),
-		pong:   pong.New(db),
 		Config: cfg,
+		pong:   pong.New(db),
 	}, nil
 }
 
@@ -41,7 +42,7 @@ func (s *Server) MountRoutes() {
 
 func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -68,27 +69,37 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	switch request.command {
 	case "/record":
 		result, err = s.pong.Record(request.channelID, request.teamID, request.text)
-		commandResponse = formatRecordResponse(result)
+    if err != nil {
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+    commandResponse = formatRecordResponse(result)
 
 	case "/stats":
 		player, err = s.pong.Stats(request.channelID, request.teamID, request.text)
-		commandResponse = formatStatsResponse(player)
+    if err != nil {
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+    commandResponse = formatStatsResponse(player)
+    
+	case "/leaderboard":
+		leaderboard, err := s.pong.Leaderboard(request.channelID)
+		if err != nil {
+			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+		commandResponse = s.formatLeaderboard(leaderboard)
+    
 	default:
-		http.Error(w, "Received invalid command", http.StatusBadRequest)
-		return
-	}
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Unsupported command", http.StatusBadRequest)
 		return
 	}
 
 	response, err := json.Marshal(&SlackResponse{"in_channel", commandResponse})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+    
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(response)
 }
@@ -148,4 +159,23 @@ func formatStatsResponse(player *pong.Player) string {
 		float32(player.MatchesWon)/float32(player.MatchesWon+player.MatchesLost+player.MatchesDrawn)*100,
 		player.CurrentStreak,
 	)
+  
+func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio"})
+	for rank, player := range leaderboard {
+		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
+		t.AppendRow(table.Row{
+			rank + 1,
+			player.FullName,
+			player.MatchesWon,
+			player.MatchesDrawn,
+			player.MatchesLost,
+			matchesPlayed,
+			fmt.Sprintf("%.2f", float64(player.MatchesWon)/float64(matchesPlayed)*100),
+		})
+	}
+	text := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
+
+	return text
 }
