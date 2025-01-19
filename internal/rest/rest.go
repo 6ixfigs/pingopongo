@@ -176,7 +176,7 @@ func formatStats(player *pong.Player) string {
 	return fmt.Sprintf(
 		r,
 		player.UserID,
-		player.MatchesWon+player.MatchesLost+player.MatchesDrawn,
+		matchesPlayed,
 		player.MatchesWon,
 		player.MatchesLost,
 		player.MatchesDrawn,
