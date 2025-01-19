@@ -17,9 +17,9 @@ type Player struct {
 }
 
 type GameResult struct {
-	winner   *Player
-	p1Points int
-	p2Points int
+	Winner   *Player
+	P1Points int
+	P2Points int
 }
 
 type MatchResult struct {

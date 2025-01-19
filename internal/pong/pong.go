@@ -23,18 +23,25 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return nil, fmt.Errorf("not enough arguments in command")
 	}
 
-	err := validateUsers(args[0], args[1])
-	if err != nil {
-		return nil, err
+	for _, userMention := range args[:2] {
+		err := validateUserMention(userMention)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	err = validateGames(args[2:])
+	err := validateGames(args[2:])
 	if err != nil {
 		return nil, err
 	}
 
 	user1ID := extractUserID(args[0])
 	user2ID := extractUserID(args[1])
+
+	if user1ID == user2ID {
+		return nil, fmt.Errorf("player can't play against himself")
+	}
+
 	games := args[2:]
 
 	player1, err := p.getOrElseAddPlayer(user1ID, channelID, teamID)
@@ -51,10 +58,10 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 	var p1GamesWon, p2GamesWon int
 	for _, result := range results {
-		player1.PointsWon += result.p1Points
-		player2.PointsWon += result.p2Points
+		player1.PointsWon += result.P1Points
+		player2.PointsWon += result.P2Points
 
-		if player1 == result.winner {
+		if player1 == result.Winner {
 			p1GamesWon++
 		} else {
 			p2GamesWon++
@@ -153,29 +160,32 @@ func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 }
 
 func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
-
-	querySelect := `
-	SELECT matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, current_streak
-	FROM players
-	WHERE 	user_id		= $1
-		AND channel_id 	= $2
-		AND team_id		= $3
-	`
-
-	player := &Player{channelID: channelID, teamID: teamID}
 	args := strings.Split(commandText, " ")
-
 	if len(args) != 1 {
 		return nil, fmt.Errorf("/stats command should have exactly 1 argument, the player tag")
 	}
 
-	//	getUserID(player, args[0])
+	err := validateUserMention(args[0])
+	if err != nil {
+		return nil, err
+	}
 
-	row := p.db.QueryRow(
+	userID := extractUserID(args[0])
+
+	querySelect := `
+	SELECT matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, current_streak, elo
+	FROM players
+	WHERE 	user_id		= $1
+		AND channel_id 	= $2
+		AND team_id	= $3
+	`
+
+	player := &Player{}
+	err = p.db.QueryRow(
 		querySelect,
-		player.UserID,
-		player.channelID,
-		player.teamID,
+		userID,
+		channelID,
+		teamID,
 	).Scan(
 		&player.MatchesWon,
 		&player.MatchesLost,
@@ -184,13 +194,14 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 		&player.GamesLost,
 		&player.PointsWon,
 		&player.CurrentStreak,
+		&player.Elo,
 	)
 
-	if row != sql.ErrNoRows {
-		return player, nil
+	if err != nil {
+		return nil, err
 	}
 
-	return &Player{}, nil
+	return player, nil
 
 }
 
@@ -321,11 +332,11 @@ func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID string) (*Player, er
 	return player, nil
 }
 
-func validateUsers(user1, user2 string) error {
+func validateUserMention(rawUserMention string) error {
 	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
 	re := regexp.MustCompile(regex)
 
-	if re.FindString(user1) == "" || re.FindString(user2) == "" {
+	if re.FindString(rawUserMention) == "" {
 		return fmt.Errorf("not a valid user")
 	}
 
@@ -374,13 +385,13 @@ func determineGameResults(games []string, p1, p2 *Player) []GameResult {
 		result := GameResult{}
 		scores := strings.Split(game, "-")
 
-		result.p1Points, _ = strconv.Atoi(scores[0])
-		result.p2Points, _ = strconv.Atoi(scores[1])
+		result.P1Points, _ = strconv.Atoi(scores[0])
+		result.P2Points, _ = strconv.Atoi(scores[1])
 
-		if result.p1Points > result.p2Points {
-			result.winner = p1
+		if result.P1Points > result.P2Points {
+			result.Winner = p1
 		} else {
-			result.winner = p2
+			result.Winner = p2
 		}
 
 		results = append(results, result)
