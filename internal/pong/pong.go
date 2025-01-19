@@ -3,7 +3,6 @@ package pong
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -45,8 +44,8 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return result, fmt.Errorf("not enough arguments in command")
 	}
 
-	getUserID(p1, args[1])
-	getUserID(p2, args[0])
+	getUserID(p1, args[0])
+	getUserID(p2, args[1])
 
 	if p1.UserID == "" || p2.UserID == "" {
 		return result, fmt.Errorf("invalid player tags %s, %s", p1.UserID, p2.UserID)
@@ -301,13 +300,10 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 
 	player := &Player{channelID: channelID, teamID: teamID}
 	args := strings.Split(commandText, " ")
-	log.Println(commandText)
 
 	if len(args) != 1 {
 		return nil, fmt.Errorf("/stats command should have exactly 1 argument, the player tag")
 	}
-
-	log.Println(args[0])
 
 	getUserID(player, args[0])
 
@@ -364,6 +360,7 @@ func (p *Pong) storeMatchDetails(p1, p2 *Player) error {
 	}
 
 	return nil
+}
 
 func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 	query := `

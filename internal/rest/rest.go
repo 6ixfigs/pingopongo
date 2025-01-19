@@ -69,20 +69,20 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	switch request.command {
 	case "/record":
 		result, err = s.pong.Record(request.channelID, request.teamID, request.text)
-    if err != nil {
+		if err != nil {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-    commandResponse = formatRecordResponse(result)
+		commandResponse = formatRecordResponse(result)
 
 	case "/stats":
 		player, err = s.pong.Stats(request.channelID, request.teamID, request.text)
-    if err != nil {
+		if err != nil {
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-    commandResponse = formatStatsResponse(player)
-    
+		commandResponse = formatStatsResponse(player)
+
 	case "/leaderboard":
 		leaderboard, err := s.pong.Leaderboard(request.channelID)
 		if err != nil {
@@ -90,7 +90,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		commandResponse = s.formatLeaderboard(leaderboard)
-    
+
 	default:
 		http.Error(w, "Unsupported command", http.StatusBadRequest)
 		return
@@ -99,7 +99,8 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(&SlackResponse{"in_channel", commandResponse})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-    
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(response)
 }
@@ -159,7 +160,8 @@ func formatStatsResponse(player *pong.Player) string {
 		float32(player.MatchesWon)/float32(player.MatchesWon+player.MatchesLost+player.MatchesDrawn)*100,
 		player.CurrentStreak,
 	)
-  
+}
+
 func (s *Server) formatLeaderboard(leaderboard []pong.Player) string {
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio"})
