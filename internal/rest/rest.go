@@ -69,6 +69,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	case "/record":
 		result, err := s.pong.Record(request.channelID, request.teamID, request.text)
 		if err != nil {
+			fmt.Printf("err: %v\n", err)
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -77,6 +78,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	case "/stats":
 		player, err := s.pong.Stats(request.channelID, request.teamID, request.text)
 		if err != nil {
+			fmt.Printf("err: %v\n", err)
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -85,6 +87,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	case "/leaderboard":
 		leaderboard, err := s.pong.Leaderboard(request.channelID)
 		if err != nil {
+			fmt.Printf("err: %v\n", err)
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -97,7 +100,9 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 
 	response, err := json.Marshal(&CommandResponse{"in_channel", responseText})
 	if err != nil {
+		fmt.Printf("err: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -131,31 +136,21 @@ func (s *Server) event(w http.ResponseWriter, r *http.Request) {
 }
 
 func formatMatchResult(result *pong.MatchResult) string {
-	var gamesDetails string
+	players := fmt.Sprintf("<@%s> vs <@%s>", result.Games[0].P1.UserID, result.Games[0].P2.UserID)
+
+	var gameResults string
 	for i, g := range result.Games {
-		gamesDetails += fmt.Sprintf("- Game %d: %s\n", i+1, g)
+		gameResults += fmt.Sprintf("- Game %d: %d-%d\n", i+1, g.P1Points, g.P2Points)
 	}
 
-	var response string
-	if result.Winner.GamesWon != result.Loser.GamesWon {
-		response = fmt.Sprintf(
-			"Match recorded successfully:\n<@%s> vs <@%s>\n%s:trophy: Winner: <@%s> (%d-%d in games)",
-			result.Winner.UserID,
-			result.Loser.UserID,
-			gamesDetails,
-			result.Winner.UserID,
-			result.Winner.GamesWon,
-			result.Loser.GamesWon,
-		)
+	var conclusion string
+	if result.IsDraw {
+		conclusion = "Draw!"
 	} else {
-		response = fmt.Sprintf(
-			"Match recorded succesfully:\n<@%s> vs <@%s>\n%sDraw",
-			result.Winner.UserID,
-			result.Loser.UserID,
-			gamesDetails,
-		)
+		conclusion = fmt.Sprintf(":trophy: Winner: <@%s>", result.Winner.UserID)
 	}
 
+	response := fmt.Sprintf("Match recorded:\n%s\n%s\n%s", players, gameResults, conclusion)
 	return response
 }
 
@@ -170,6 +165,7 @@ func formatStats(player *pong.Player) string {
 	- Points won: %d
 	- Win ratio: %.2f%%
 	- Current streak: %d
+	- Elo: %d
 	`
 
 	matchesPlayed := player.MatchesWon + player.MatchesLost + player.MatchesDrawn
@@ -185,12 +181,13 @@ func formatStats(player *pong.Player) string {
 		player.PointsWon,
 		float64(player.MatchesWon)/float64(matchesPlayed)*100,
 		player.CurrentStreak,
+		player.Elo,
 	)
 }
 
 func formatLeaderboard(leaderboard []pong.Player) string {
 	t := table.NewWriter()
-	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio"})
+	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio", "Elo"})
 	for rank, player := range leaderboard {
 		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
 		t.AppendRow(table.Row{
@@ -201,6 +198,7 @@ func formatLeaderboard(leaderboard []pong.Player) string {
 			player.MatchesLost,
 			matchesPlayed,
 			fmt.Sprintf("%.2f", float64(player.MatchesWon)/float64(matchesPlayed)*100),
+			player.Elo,
 		})
 	}
 	text := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())

@@ -121,10 +121,10 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 	query := `
-		SELECT full_name, matches_won, matches_drawn, matches_lost
+		SELECT full_name, matches_won, matches_drawn, matches_lost, elo
 		FROM players
 		WHERE channel_id = $1
-		ORDER BY matches_won DESC
+		ORDER BY elo DESC
 		LIMIT 15
 	`
 
@@ -207,7 +207,7 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 
 func (p *Pong) addMatchToHistory(p1, p2 *Player) error {
 	query := `
-	INSERT INTO match_history (player_id_1, player_id_2, games_won_1, games_won_2)
+	INSERT INTO match_history (player1_id, player2_id, player1_games_won, player2_games_won)
 	VALUES ($1, $2, $3, $4);
 	`
 
@@ -302,7 +302,7 @@ func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID string) (*Player, er
 	WITH inserted AS (
 		INSERT INTO players (user_id, channel_id, team_id)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, channel_id, teams_id) DO NOTHING
+		ON CONFLICT (user_id, channel_id, team_id) DO NOTHING
 		RETURNING *
 	)
 	SELECT * FROM inserted
@@ -316,6 +316,7 @@ func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID string) (*Player, er
 		&player.UserID,
 		&player.channelID,
 		&player.teamID,
+		&player.FullName,
 		&player.MatchesWon,
 		&player.MatchesLost,
 		&player.MatchesDrawn,
@@ -383,6 +384,9 @@ func determineGameResults(games []string, p1, p2 *Player) []GameResult {
 
 	for _, game := range games {
 		result := GameResult{}
+		result.P1 = p1
+		result.P2 = p2
+
 		scores := strings.Split(game, "-")
 
 		result.P1Points, _ = strconv.Atoi(scores[0])

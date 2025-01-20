@@ -18,6 +18,8 @@ type Player struct {
 
 type GameResult struct {
 	Winner   *Player
+	P1       *Player
+	P2       *Player
 	P1Points int
 	P2Points int
 }
