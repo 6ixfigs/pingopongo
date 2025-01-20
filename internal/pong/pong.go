@@ -179,7 +179,7 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 		AND team_id	= $3
 	`
 
-	player := &Player{}
+	player := &Player{UserID: userID, channelID: channelID, teamID: teamID}
 	err = p.db.QueryRow(
 		querySelect,
 		userID,
