@@ -1,9 +1,9 @@
 CREATE TABLE players (
-	id integer GENERATED ALWAYS AS IDENTITY,
+	id integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 	user_id varchar(255) NOT NULL,
 	channel_id varchar(255) NOT NULL,
 	team_id varchar(255) NOT NULL,
-	full_name varchar(255) NOT NULL,
+	full_name varchar(255) NOT NULL DEFAULT '',
 	matches_won integer DEFAULT 0,
 	matches_drawn integer DEFAULT 0,
 	matches_lost integer DEFAULT 0,
