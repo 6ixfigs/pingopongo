@@ -136,18 +136,22 @@ func (s *Server) event(w http.ResponseWriter, r *http.Request) {
 }
 
 func formatMatchResult(result *pong.MatchResult) string {
-	players := fmt.Sprintf("<@%s> vs <@%s>", result.Games[0].P1.UserID, result.Games[0].P2.UserID)
+	players := fmt.Sprintf("<@%s> vs <@%s>", result.P1.UserID, result.P2.UserID)
 
 	var gameResults string
 	for i, g := range result.Games {
-		gameResults += fmt.Sprintf("- Game %d: %d-%d\n", i+1, g.P1Points, g.P2Points)
+		gameResults += fmt.Sprintf("- Game %d: %d-%d\n", i+1, g.P1PointsWon, g.P2PointsWon)
 	}
 
 	var conclusion string
 	if result.IsDraw {
 		conclusion = "Draw!"
 	} else {
-		conclusion = fmt.Sprintf(":trophy: Winner: <@%s>", result.Winner.UserID)
+		conclusion = fmt.Sprintf(":trophy: Winner: <@%s> %d-%d",
+			result.Winner.UserID,
+			result.P1GamesWon,
+			result.P2GamesWon,
+		)
 	}
 
 	response := fmt.Sprintf("Match recorded:\n%s\n%s\n%s", players, gameResults, conclusion)

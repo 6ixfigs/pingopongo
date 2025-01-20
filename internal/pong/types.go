@@ -17,16 +17,19 @@ type Player struct {
 }
 
 type GameResult struct {
-	Winner   *Player
-	P1       *Player
-	P2       *Player
-	P1Points int
-	P2Points int
+	Winner      *Player
+	P1          *Player
+	P2          *Player
+	P1PointsWon int
+	P2PointsWon int
 }
 
 type MatchResult struct {
-	Winner *Player
-	Loser  *Player
-	IsDraw bool
-	Games  []GameResult
+	Winner     *Player
+	P1         *Player
+	P2         *Player
+	P1GamesWon int
+	P2GamesWon int
+	IsDraw     bool
+	Games      []GameResult
 }

@@ -56,47 +56,46 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 	results := determineGameResults(games, player1, player2)
 
-	var p1GamesWon, p2GamesWon int
+	matchResult := &MatchResult{}
+	matchResult.P1 = player1
+	matchResult.P2 = player2
 	for _, result := range results {
-		player1.PointsWon += result.P1Points
-		player2.PointsWon += result.P2Points
+		player1.PointsWon += result.P1PointsWon
+		player2.PointsWon += result.P2PointsWon
 
 		if player1 == result.Winner {
-			p1GamesWon++
+			matchResult.P1GamesWon++
 		} else {
-			p2GamesWon++
+			matchResult.P2GamesWon++
 		}
 	}
 
-	player1.GamesWon += p1GamesWon
-	player1.GamesLost += p2GamesWon
+	player1.GamesWon += matchResult.P1GamesWon
+	player1.GamesLost += matchResult.P2GamesWon
 
-	player2.GamesWon += p2GamesWon
-	player2.GamesLost += p1GamesWon
+	player2.GamesWon += matchResult.P2GamesWon
+	player2.GamesLost += matchResult.P1GamesWon
 
-	matchResult := &MatchResult{}
 	matchResult.Games = results
 
-	if p1GamesWon > p2GamesWon {
+	if matchResult.P1GamesWon > matchResult.P2GamesWon {
 		matchResult.Winner = player1
-		matchResult.Loser = player2
-	} else if p2GamesWon > p1GamesWon {
+		player1.MatchesWon++
+		player1.CurrentStreak++
+		player2.MatchesLost++
+		player2.CurrentStreak = 0
+	} else if matchResult.P2GamesWon > matchResult.P1GamesWon {
 		matchResult.Winner = player2
-		matchResult.Loser = player1
+		player1.MatchesLost--
+		player1.CurrentStreak = 0
+		player2.MatchesWon++
+		player2.CurrentStreak++
 	} else {
 		matchResult.IsDraw = true
-	}
-
-	if matchResult.IsDraw {
 		player1.MatchesDrawn++
 		player1.CurrentStreak = 0
 		player2.MatchesDrawn++
 		player2.CurrentStreak = 0
-	} else {
-		matchResult.Winner.MatchesWon++
-		matchResult.Winner.CurrentStreak++
-		matchResult.Loser.MatchesLost++
-		matchResult.Loser.CurrentStreak = 0
 	}
 
 	p.updateElo(matchResult)
@@ -268,12 +267,12 @@ func (p *Pong) UpdateChannelID(oldID, newID string) error {
 	return nil
 }
 
-func (p *Pong) updateElo(matchResult *MatchResult) {
-	qW := math.Pow(10, float64(matchResult.Winner.Elo)/400)
-	qL := math.Pow(10, float64(matchResult.Loser.Elo)/400)
+func (p *Pong) updateElo(result *MatchResult) {
+	q1 := math.Pow(10, float64(result.P1.Elo)/400)
+	q2 := math.Pow(10, float64(result.P2.Elo)/400)
 
-	eW := qW / (qW + qL)
-	eL := qL / (qW + qL)
+	e1 := q1 / (q1 + q2)
+	e2 := q2 / (q1 + q2)
 
 	kFactor := func(rating int) float64 {
 		if rating < 2100 {
@@ -285,16 +284,18 @@ func (p *Pong) updateElo(matchResult *MatchResult) {
 		return 16
 	}
 
-	kW := kFactor(matchResult.Winner.Elo)
-	kL := kFactor(matchResult.Loser.Elo)
+	k1 := kFactor(result.P1.Elo)
+	k2 := kFactor(result.P2.Elo)
 
-	sW, sL := 1.0, 0.0
-	if matchResult.IsDraw {
-		sW, sL = 0.5, 0.5
+	s1, s2 := 1.0, 0.0
+	if result.Winner == result.P2 {
+		s1, s2 = 0.0, 1.0
+	} else if result.IsDraw {
+		s1, s2 = 0.5, 0.5
 	}
 
-	matchResult.Winner.Elo = matchResult.Winner.Elo + int(math.Round(kW*(sW-eW)))
-	matchResult.Loser.Elo = matchResult.Loser.Elo + int(math.Round(kL*(sL-eL)))
+	result.P1.Elo = result.P1.Elo + int(math.Round(k1*(s1-e1)))
+	result.P2.Elo = result.P2.Elo + int(math.Round(k2*(s2-e2)))
 }
 
 func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID string) (*Player, error) {
@@ -389,10 +390,10 @@ func determineGameResults(games []string, p1, p2 *Player) []GameResult {
 
 		scores := strings.Split(game, "-")
 
-		result.P1Points, _ = strconv.Atoi(scores[0])
-		result.P2Points, _ = strconv.Atoi(scores[1])
+		result.P1PointsWon, _ = strconv.Atoi(scores[0])
+		result.P2PointsWon, _ = strconv.Atoi(scores[1])
 
-		if result.P1Points > result.P2Points {
+		if result.P1PointsWon > result.P2PointsWon {
 			result.Winner = p1
 		} else {
 			result.Winner = p2
