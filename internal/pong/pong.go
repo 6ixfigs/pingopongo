@@ -30,7 +30,17 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		}
 	}
 
-	err := validateGames(args[2:])
+	err := validateUserMention(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	err = validateUserMention(args[1])
+	if err != nil {
+		return nil, err
+	}
+
+	err = validateGames(args[2:])
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +96,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		player2.CurrentStreak = 0
 	} else if matchResult.P2GamesWon > matchResult.P1GamesWon {
 		matchResult.Winner = player2
-		player1.MatchesLost--
+		player1.MatchesLost++
 		player1.CurrentStreak = 0
 		player2.MatchesWon++
 		player2.CurrentStreak++
