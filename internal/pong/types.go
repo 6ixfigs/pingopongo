@@ -2,21 +2,34 @@ package pong
 
 type Player struct {
 	id            int
-  FullName      string
 	UserID        string
 	channelID     string
 	teamID        string
+	FullName      string
 	MatchesWon    int
 	MatchesDrawn  int
 	MatchesLost   int
-	CurrentStreak int
 	GamesWon      int
 	GamesLost     int
 	PointsWon     int
+	CurrentStreak int
+	Elo           int
+}
+
+type GameResult struct {
+	Winner      *Player
+	P1          *Player
+	P2          *Player
+	P1PointsWon int
+	P2PointsWon int
 }
 
 type MatchResult struct {
-	Winner *Player
-	Loser  *Player
-	Games  []string
+	Winner     *Player
+	P1         *Player
+	P2         *Player
+	P1GamesWon int
+	P2GamesWon int
+	IsDraw     bool
+	Games      []GameResult
 }
