@@ -10,6 +10,7 @@ import (
 type Config struct {
 	ServerPort string
 	DBConn     string
+	BotToken   string
 }
 
 func Get() (*Config, error) {
@@ -26,5 +27,6 @@ func Get() (*Config, error) {
 			os.Getenv("DB_PORT"),
 			os.Getenv("DB_NAME"),
 		),
+		BotToken: os.Getenv("BOT_TOKEN"),
 	}, nil
 }
