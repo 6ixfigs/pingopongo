@@ -70,8 +70,8 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	matchResult.P1 = player1
 	matchResult.P2 = player2
 	for _, result := range results {
-		player1.PointsWon += result.P1PointsWon
-		player2.PointsWon += result.P2PointsWon
+		player1.TotalPointsWon += result.P1PointsWon
+		player2.TotalPointsWon += result.P2PointsWon
 
 		if player1 == result.Winner {
 			matchResult.P1GamesWon++
@@ -80,11 +80,11 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		}
 	}
 
-	player1.GamesWon += matchResult.P1GamesWon
-	player1.GamesLost += matchResult.P2GamesWon
+	player1.TotalGamesWon += matchResult.P1GamesWon
+	player1.TotalGamesLost += matchResult.P2GamesWon
 
-	player2.GamesWon += matchResult.P2GamesWon
-	player2.GamesLost += matchResult.P1GamesWon
+	player2.TotalGamesWon += matchResult.P2GamesWon
+	player2.TotalGamesLost += matchResult.P1GamesWon
 
 	matchResult.Games = results
 
@@ -182,7 +182,7 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 	userID := extractUserID(args[0])
 
 	querySelect := `
-	SELECT matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, current_streak, elo
+	SELECT matches_won, matches_lost, matches_drawn, total_games_won, total_games_lost, total_points_won, current_streak, elo
 	FROM players
 	WHERE 	user_id		= $1
 		AND channel_id 	= $2
@@ -199,9 +199,9 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 		&player.MatchesWon,
 		&player.MatchesLost,
 		&player.MatchesDrawn,
-		&player.GamesWon,
-		&player.GamesLost,
-		&player.PointsWon,
+		&player.TotalGamesWon,
+		&player.TotalGamesLost,
+		&player.TotalPointsWon,
 		&player.CurrentStreak,
 		&player.Elo,
 	)
@@ -220,7 +220,7 @@ func (p *Pong) addMatchToHistory(p1, p2 *Player) error {
 	VALUES ($1, $2, $3, $4);
 	`
 
-	_, err := p.db.Exec(query, p1.id, p2.id, p1.GamesWon, p2.GamesWon)
+	_, err := p.db.Exec(query, p1.id, p2.id, p1.TotalGamesWon, p2.TotalGamesWon)
 	if err != nil {
 		return fmt.Errorf("failed to insert match details: %w", err)
 	}
@@ -235,9 +235,9 @@ func (p *Pong) updatePlayer(player *Player) error {
 		matches_won = $1,
 		matches_lost = $2,
 		matches_drawn = $3,
-		games_won = $4,
-		games_lost = $5,
-		points_won = $6,
+		total_games_won = $4,
+		total_games_lost = $5,
+		total_points_won = $6,
 		current_streak = $7,
 		elo = $8
 	WHERE user_id = $9 AND channel_id = $10 AND team_id = $11
@@ -246,9 +246,9 @@ func (p *Pong) updatePlayer(player *Player) error {
 		player.MatchesWon,
 		player.MatchesDrawn,
 		player.MatchesLost,
-		player.GamesWon,
-		player.GamesLost,
-		player.PointsWon,
+		player.TotalGamesWon,
+		player.TotalGamesLost,
+		player.TotalPointsWon,
 		player.CurrentStreak,
 		player.Elo,
 		player.UserID,
@@ -331,9 +331,9 @@ func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID string) (*Player, er
 		&player.MatchesWon,
 		&player.MatchesLost,
 		&player.MatchesDrawn,
-		&player.GamesWon,
-		&player.GamesLost,
-		&player.PointsWon,
+		&player.TotalGamesWon,
+		&player.TotalGamesLost,
+		&player.TotalPointsWon,
 		&player.CurrentStreak,
 		&player.Elo,
 	)

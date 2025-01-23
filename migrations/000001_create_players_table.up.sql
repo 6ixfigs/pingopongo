@@ -7,9 +7,9 @@ CREATE TABLE players (
 	matches_won integer DEFAULT 0,
 	matches_drawn integer DEFAULT 0,
 	matches_lost integer DEFAULT 0,
-	games_won integer DEFAULT 0,
-	games_lost integer DEFAULT 0,
-	points_won integer DEFAULT 0,
+	total_games_won integer DEFAULT 0,
+	total_games_lost integer DEFAULT 0,
+	total_points_won integer DEFAULT 0,
 	current_streak integer DEFAULT 0,
 	elo integer DEFAULT 1000,
 	UNIQUE(user_id, channel_id, team_id)
