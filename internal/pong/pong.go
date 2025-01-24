@@ -138,6 +138,10 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*types.MatchResult
 		return nil, err
 	}
 
+	if err := txRepo.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return matchResult, nil
 }
 
