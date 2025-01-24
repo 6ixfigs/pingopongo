@@ -1,8 +1,25 @@
-package pong
+package repository
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
 
-func (p *Pong) GetOrElseAddPlayer(userID, channelID, teamID string) (*Player, error) {
+	"github.com/6ixfigs/pingypongy/internal/types"
+)
+
+func NewRepository(db *sql.DB) *SQLRepository {
+	return &SQLRepository{db}
+}
+
+type SQLRepository struct {
+	db *sql.DB
+}
+
+type Repository interface {
+	GetOrElseAddPlayer(userID, channelID, teamID string) (*types.Player, error)
+}
+
+func (repo *SQLRepository) GetOrElseAddPlayer(userID, channelID, teamID string) (*types.Player, error) {
 	query := `
 	WITH inserted AS (
 		INSERT INTO players (user_id, channel_id, team_id)
@@ -15,12 +32,12 @@ func (p *Pong) GetOrElseAddPlayer(userID, channelID, teamID string) (*Player, er
 	SELECT * FROM players
 	WHERE user_id = $1 AND channel_id = $2 AND team_id = $3;
 	`
-	player := &Player{}
-	err := p.db.QueryRow(query, userID, channelID, teamID).Scan(
-		&player.id,
+	player := &types.Player{}
+	err := repo.db.QueryRow(query, userID, channelID, teamID).Scan(
+		&player.Id,
 		&player.UserID,
-		&player.channelID,
-		&player.teamID,
+		&player.ChannelID,
+		&player.TeamID,
 		&player.FullName,
 		&player.MatchesWon,
 		&player.MatchesLost,
@@ -38,14 +55,14 @@ func (p *Pong) GetOrElseAddPlayer(userID, channelID, teamID string) (*Player, er
 	return player, nil
 }
 
-func (p *Pong) UpdateChannelID(oldID, newID string) error {
+func (repo *SQLRepository) UpdateChannelID(oldID, newID string) error {
 	query := `
 	UPDATE players
 	SET channel_id = $1
 	WHERE channel_id = $2
 	`
 
-	_, err := p.db.Exec(query, newID, oldID)
+	_, err := repo.db.Exec(query, newID, oldID)
 	if err != nil {
 		return err
 	}
@@ -53,13 +70,13 @@ func (p *Pong) UpdateChannelID(oldID, newID string) error {
 	return nil
 }
 
-func (p *Pong) AddMatchToHistory(p1, p2 *Player) error {
+func (repo *SQLRepository) AddMatchToHistory(p1, p2 *types.Player) error {
 	query := `
 	INSERT INTO match_history (player1_id, player2_id, player1_games_won, player2_games_won)
 	VALUES ($1, $2, $3, $4);
 	`
 
-	_, err := p.db.Exec(query, p1.id, p2.id, p1.GamesWon, p2.GamesWon)
+	_, err := repo.db.Exec(query, p1.Id, p2.Id, p1.GamesWon, p2.GamesWon)
 	if err != nil {
 		return fmt.Errorf("failed to insert match details: %w", err)
 	}
@@ -67,7 +84,7 @@ func (p *Pong) AddMatchToHistory(p1, p2 *Player) error {
 	return nil
 }
 
-func (p *Pong) UpdatePlayer(player *Player) error {
+func (repo *SQLRepository) UpdatePlayer(player *types.Player) error {
 	query := `
 	UPDATE players
 	SET
@@ -81,7 +98,7 @@ func (p *Pong) UpdatePlayer(player *Player) error {
 		elo = $8
 	WHERE user_id = $9 AND channel_id = $10 AND team_id = $11
 	`
-	_, err := p.db.Exec(query,
+	_, err := repo.db.Exec(query,
 		player.MatchesWon,
 		player.MatchesDrawn,
 		player.MatchesLost,
@@ -91,12 +108,24 @@ func (p *Pong) UpdatePlayer(player *Player) error {
 		player.CurrentStreak,
 		player.Elo,
 		player.UserID,
-		player.channelID,
-		player.teamID,
+		player.ChannelID,
+		player.TeamID,
 	)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (repo *SQLRepository) GetLeaderboardData(channelID string) (*sql.Rows, error) {
+	query := `
+		SELECT full_name, matches_won, matches_drawn, matches_lost, elo
+		FROM players
+		WHERE channel_id = $1
+		ORDER BY elo DESC
+		LIMIT 15
+	`
+
+	return repo.db.Query(query, channelID)
 }

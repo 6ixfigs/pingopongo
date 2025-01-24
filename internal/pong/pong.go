@@ -7,17 +7,20 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/6ixfigs/pingypongy/internal/repository"
+	"github.com/6ixfigs/pingypongy/internal/types"
 )
 
 type Pong struct {
-	db *sql.DB
+	repo *repository.SQLRepository
 }
 
 func New(db *sql.DB) *Pong {
-	return &Pong{db}
+	return &Pong{repo: repository.NewRepository(db)}
 }
 
-func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, error) {
+func (p *Pong) Record(channelID, teamID, commandText string) (*types.MatchResult, error) {
 	args := strings.Split(commandText, " ")
 	if len(args) < 3 {
 		return nil, fmt.Errorf("not enough arguments in command")
@@ -54,19 +57,19 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 	games := args[2:]
 
-	player1, err := p.GetOrElseAddPlayer(user1ID, channelID, teamID)
+	player1, err := p.repo.GetOrElseAddPlayer(user1ID, channelID, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	player2, err := p.GetOrElseAddPlayer(user2ID, channelID, teamID)
+	player2, err := p.repo.GetOrElseAddPlayer(user2ID, channelID, teamID)
 	if err != nil {
 		return nil, err
 	}
 
 	results := determineGameResults(games, player1, player2)
 
-	matchResult := &MatchResult{}
+	matchResult := &types.MatchResult{}
 	matchResult.P1 = player1
 	matchResult.P2 = player2
 	for _, result := range results {
@@ -110,17 +113,17 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 	p.updateElo(matchResult)
 
-	err = p.UpdatePlayer(player1)
+	err = p.repo.UpdatePlayer(player1)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.UpdatePlayer(player2)
+	err = p.repo.UpdatePlayer(player2)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.AddMatchToHistory(player1, player2)
+	err = p.repo.AddMatchToHistory(player1, player2)
 	if err != nil {
 		return nil, err
 	}
@@ -128,25 +131,19 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	return matchResult, nil
 }
 
-func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
-	query := `
-		SELECT full_name, matches_won, matches_drawn, matches_lost, elo
-		FROM players
-		WHERE channel_id = $1
-		ORDER BY elo DESC
-		LIMIT 15
-	`
+func (p *Pong) Leaderboard(channelID string) ([]types.Player, error) {
 
-	rows, err := p.db.Query(query, channelID)
+	rows, err := p.repo.GetLeaderboardData(channelID)
+
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var players []Player
+	var players []types.Player
 
 	for rows.Next() {
-		var player Player
+		var player types.Player
 		err = rows.Scan(
 			&player.FullName,
 			&player.MatchesWon,
@@ -168,7 +165,7 @@ func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 	return players, nil
 }
 
-func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
+func (p *Pong) Stats(channelID, teamID, commandText string) (*types.Player, error) {
 	args := strings.Split(commandText, " ")
 	if len(args) != 1 {
 		return nil, fmt.Errorf("/stats command should have exactly 1 argument, the player tag")
@@ -181,30 +178,7 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 
 	userID := extractUserID(args[0])
 
-	querySelect := `
-	SELECT matches_won, matches_lost, matches_drawn, games_won, games_lost, points_won, current_streak, elo
-	FROM players
-	WHERE 	user_id		= $1
-		AND channel_id 	= $2
-		AND team_id	= $3
-	`
-
-	player := &Player{UserID: userID, channelID: channelID, teamID: teamID}
-	err = p.db.QueryRow(
-		querySelect,
-		userID,
-		channelID,
-		teamID,
-	).Scan(
-		&player.MatchesWon,
-		&player.MatchesLost,
-		&player.MatchesDrawn,
-		&player.GamesWon,
-		&player.GamesLost,
-		&player.PointsWon,
-		&player.CurrentStreak,
-		&player.Elo,
-	)
+	player, err := p.repo.GetOrElseAddPlayer(userID, channelID, teamID)
 
 	if err != nil {
 		return nil, err
@@ -214,7 +188,7 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 
 }
 
-func (p *Pong) updateElo(result *MatchResult) {
+func (p *Pong) updateElo(result *types.MatchResult) {
 	q1 := math.Pow(10, float64(result.P1.Elo)/400)
 	q2 := math.Pow(10, float64(result.P2.Elo)/400)
 
@@ -290,12 +264,16 @@ func validateGames(games []string) error {
 	return nil
 }
 
-func determineGameResults(games []string, p1, p2 *Player) []GameResult {
+func (p *Pong) UpdateChannelID(oldID, newID string) error {
+	return p.repo.UpdateChannelID(oldID, newID)
+}
 
-	var results []GameResult
+func determineGameResults(games []string, p1, p2 *types.Player) []types.GameResult {
+
+	var results []types.GameResult
 
 	for _, game := range games {
-		result := GameResult{}
+		result := types.GameResult{}
 		result.P1 = p1
 		result.P2 = p2
 

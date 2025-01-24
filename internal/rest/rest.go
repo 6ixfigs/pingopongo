@@ -8,6 +8,7 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/6ixfigs/pingypongy/internal/pong"
+	"github.com/6ixfigs/pingypongy/internal/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
@@ -135,7 +136,7 @@ func (s *Server) event(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("err: %v\n", err)
 }
 
-func formatMatchResult(result *pong.MatchResult) string {
+func formatMatchResult(result *types.MatchResult) string {
 	players := fmt.Sprintf("<@%s> vs <@%s>", result.P1.UserID, result.P2.UserID)
 
 	var gameResults string
@@ -158,7 +159,7 @@ func formatMatchResult(result *pong.MatchResult) string {
 	return response
 }
 
-func formatStats(player *pong.Player) string {
+func formatStats(player *types.Player) string {
 	r := `Stats for <@%s>:
 	- Matches played: %d
 	- Matches won: %d
@@ -189,7 +190,7 @@ func formatStats(player *pong.Player) string {
 	)
 }
 
-func formatLeaderboard(leaderboard []pong.Player) string {
+func formatLeaderboard(leaderboard []types.Player) string {
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio", "Elo"})
 	for rank, player := range leaderboard {
