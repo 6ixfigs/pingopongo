@@ -7,16 +7,49 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/types"
 )
 
-func NewRepository(db *sql.DB) *SQLRepository {
-	return &SQLRepository{db}
-}
-
 type SQLRepository struct {
 	db *sql.DB
+	tx *sql.Tx
+}
+
+func NewRepository(db *sql.DB) *SQLRepository {
+	return &SQLRepository{db: db}
 }
 
 type Repository interface {
+	Begin() (*SQLRepository, error)
+	Commit() error
+	Rollback() error
+
 	GetOrElseAddPlayer(userID, channelID, teamID string) (*types.Player, error)
+	UpdateChannelID(oldID, newID string) error
+	AddMatchToHistory(p1, p2 *types.Player) error
+	UpdatePlayer(player *types.Player) error
+	GetLeaderboardData(channelID string) (*sql.Rows, error)
+}
+
+func (repo *SQLRepository) Begin() (*SQLRepository, error) {
+	tx, err := repo.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &SQLRepository{db: repo.db, tx: tx}, nil
+}
+
+func (repo *SQLRepository) Commit() error {
+	if repo.tx != nil {
+		return repo.tx.Commit()
+	}
+
+	return fmt.Errorf("no transaction to commit")
+}
+
+func (repo *SQLRepository) Rollback() error {
+	if repo.tx != nil {
+		return repo.tx.Rollback()
+	}
+
+	return fmt.Errorf("no transaction to rollback")
 }
 
 func (repo *SQLRepository) GetOrElseAddPlayer(userID, channelID, teamID string) (*types.Player, error) {
