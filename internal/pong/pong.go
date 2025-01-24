@@ -57,12 +57,22 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*types.MatchResult
 
 	games := args[2:]
 
-	player1, err := p.repo.GetOrElseAddPlayer(user1ID, channelID, teamID)
+	txRepo, err := p.repo.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			txRepo.Rollback()
+		}
+	}()
+
+	player1, err := txRepo.GetOrElseAddPlayer(user1ID, channelID, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	player2, err := p.repo.GetOrElseAddPlayer(user2ID, channelID, teamID)
+	player2, err := txRepo.GetOrElseAddPlayer(user2ID, channelID, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,17 +123,17 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*types.MatchResult
 
 	p.updateElo(matchResult)
 
-	err = p.repo.UpdatePlayer(player1)
+	err = txRepo.UpdatePlayer(player1)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.repo.UpdatePlayer(player2)
+	err = txRepo.UpdatePlayer(player2)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.repo.AddMatchToHistory(player1, player2)
+	err = txRepo.AddMatchToHistory(player1, player2)
 	if err != nil {
 		return nil, err
 	}
