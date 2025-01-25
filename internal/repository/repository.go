@@ -17,7 +17,7 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 }
 
 type Repository interface {
-	Begin() (*SQLRepository, error)
+	Begin() (Repository, error)
 	Commit() error
 	Rollback() error
 
@@ -28,7 +28,7 @@ type Repository interface {
 	GetLeaderboardData(channelID string) (*sql.Rows, error)
 }
 
-func (repo *SQLRepository) Begin() (*SQLRepository, error) {
+func (repo *SQLRepository) Begin() (Repository, error) {
 	tx, err := repo.db.Begin()
 	if err != nil {
 		return nil, err

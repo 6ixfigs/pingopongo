@@ -1,5 +1,4 @@
 module github.com/6ixfigs/pingypongy
-
 go 1.23.4
 
 require (
