@@ -238,7 +238,7 @@ func validateUserMention(rawUserMention string) error {
 	re := regexp.MustCompile(regex)
 
 	if re.FindString(rawUserMention) == "" {
-		return fmt.Errorf("not a valid user")
+		return fmt.Errorf("%s is not a valid user", rawUserMention)
 	}
 
 	return nil
@@ -268,7 +268,7 @@ func validateGames(games []string) error {
 
 		if score1 > 11 || score2 > 11 {
 			if !(math.Abs(float64(score1-score2)) == 2) {
-				return fmt.Errorf("the difference in scores of the game %s should be 2", game)
+				return fmt.Errorf("the difference in scores of the game %s should be exactly 2", game)
 			}
 		} else if score1 != 11 && score2 != 11 {
 			return fmt.Errorf("one of the scores in the game %s should be 11", game)

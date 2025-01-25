@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -63,51 +64,66 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		r.FormValue("api_app_id"),
 	}
 
-	var err error
 	var responseText string
+	w.WriteHeader(http.StatusOK)
 
 	switch request.command {
 	case "/record":
 		result, err := s.pong.Record(request.channelID, request.teamID, request.text)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
+			responseText = formatError(err.Error())
+		} else {
+			responseText = formatMatchResult(result)
 		}
-		responseText = formatMatchResult(result)
 
 	case "/stats":
 		player, err := s.pong.Stats(request.channelID, request.teamID, request.text)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
+			responseText = formatError(err.Error())
+		} else {
+			responseText = formatStats(player)
 		}
-		responseText = formatStats(player)
 
 	case "/leaderboard":
 		leaderboard, err := s.pong.Leaderboard(request.channelID)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
+			responseText = formatError(err.Error())
+		} else {
+			responseText = formatLeaderboard(leaderboard)
 		}
-		responseText = formatLeaderboard(leaderboard)
 
 	default:
-		http.Error(w, "Unsupported command", http.StatusBadRequest)
-		return
+		responseText = "Unsupported slash command. Please try one of the following:\n"
+		responseText += "\t/record\n"
+		responseText += "\t/leaderboard\n"
+		responseText += "\t/stats\n"
 	}
 
-	response, err := json.Marshal(&CommandResponse{"in_channel", responseText})
+	sendSlackResponse(request.responseUrl, responseText)
+}
+
+func sendSlackResponse(responseURL, responseText string) {
+	responseBody := &CommandResponse{
+		ResponseType: "in_channel",
+		Text:         responseText,
+	}
+
+	data, err := json.Marshal(responseBody)
 	if err != nil {
-		fmt.Printf("err: %v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Printf("Failed to marshal response: %v\n", err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
+	resp, err := http.Post(responseURL, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		fmt.Printf("Failed to send response to Slack: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Non-OK response from Slack: %v\n", resp.Status)
+	}
 }
 
 func (s *Server) event(w http.ResponseWriter, r *http.Request) {
@@ -209,4 +225,8 @@ func formatLeaderboard(leaderboard []types.Player) string {
 	text := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
 
 	return text
+}
+
+func formatError(err string) string {
+	return ":exclamation: " + err
 }
