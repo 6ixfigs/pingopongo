@@ -1,7 +1,6 @@
 package pong
 
 import (
-	"database/sql"
 	"fmt"
 	"math"
 	"regexp"
@@ -13,11 +12,11 @@ import (
 )
 
 type Pong struct {
-	repo *repository.SQLRepository
+	repo repository.Repository
 }
 
-func New(db *sql.DB) *Pong {
-	return &Pong{repo: repository.NewRepository(db)}
+func New(repo repository.Repository) *Pong {
+	return &Pong{repo: repo}
 }
 
 func (p *Pong) Record(channelID, teamID, commandText string) (*types.MatchResult, error) {

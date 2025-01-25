@@ -9,6 +9,7 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/6ixfigs/pingypongy/internal/pong"
+	"github.com/6ixfigs/pingypongy/internal/repository"
 	"github.com/6ixfigs/pingypongy/internal/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -34,7 +35,7 @@ func NewServer() (*Server, error) {
 	return &Server{
 		Router: chi.NewRouter(),
 		Config: cfg,
-		pong:   pong.New(db),
+		pong:   pong.New(repository.NewSQLRepository(db)),
 	}, nil
 }
 
