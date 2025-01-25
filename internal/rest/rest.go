@@ -44,7 +44,6 @@ func (s *Server) MountRoutes() {
 }
 
 func (s *Server) command(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -98,6 +97,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	sendSlackResponse(request.responseUrl, responseText)
 }
 
