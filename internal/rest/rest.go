@@ -44,6 +44,8 @@ func (s *Server) MountRoutes() {
 }
 
 func (s *Server) command(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -65,7 +67,6 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var responseText string
-	w.WriteHeader(http.StatusOK)
 
 	switch request.command {
 	case "/record":
@@ -93,10 +94,8 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		}
 
 	default:
-		responseText = "Unsupported slash command. Please try one of the following:\n"
-		responseText += "\t/record\n"
-		responseText += "\t/leaderboard\n"
-		responseText += "\t/stats\n"
+		// code won't reach this point because Slack will automatically return an error message for invalid slash commands
+		return
 	}
 
 	sendSlackResponse(request.responseUrl, responseText)
