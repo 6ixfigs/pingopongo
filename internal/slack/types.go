@@ -1,18 +1,18 @@
-package rest
+package slack
 
 type CommandRequest struct {
-	teamID         string
-	teamDomain     string
-	enterpriseID   string
-	enterpriseName string
-	channelID      string
-	channelName    string
-	userID         string
-	command        string
-	text           string
-	responseUrl    string
-	triggerID      string
-	apiAppID       string
+	TeamID         string
+	TeamDomain     string
+	EnterpriseID   string
+	EnterpriseName string
+	ChannelID      string
+	ChannelName    string
+	UserID         string
+	Command        string
+	Text           string
+	ResponseUrl    string
+	TriggerID      string
+	ApiAppID       string
 }
 
 type CommandResponse struct {
@@ -31,4 +31,14 @@ type EventRequest struct {
 	EventContext   string            `json:"event_context"`
 	EventID        string            `json:"event_id"`
 	EventTime      string            `json:"event_time"`
+}
+
+type UserInfoResponse struct {
+	Ok    bool     `json:"ok"`
+	Error string   `json:"error,omitempty"`
+	User  UserInfo `json:"user,omitempty"`
+}
+
+type UserInfo struct {
+	RealName string `json:"real_name"`
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/6ixfigs/pingypongy/internal/pong"
+	"github.com/6ixfigs/pingypongy/internal/slack"
 	"github.com/go-chi/chi/v5"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
@@ -47,27 +48,27 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := &CommandRequest{
-		r.FormValue("team_id"),
-		r.FormValue("team_domain"),
-		r.FormValue("enterprise_id"),
-		r.FormValue("enterprise_name"),
-		r.FormValue("channel_id"),
-		r.FormValue("channel_name"),
-		r.FormValue("user_id"),
-		r.FormValue("command"),
-		r.FormValue("text"),
-		r.FormValue("response_url"),
-		r.FormValue("trigger_id"),
-		r.FormValue("api_app_id"),
+	request := &slack.CommandRequest{
+		TeamID:         r.FormValue("team_id"),
+		TeamDomain:     r.FormValue("team_domain"),
+		EnterpriseID:   r.FormValue("enterprise_id"),
+		EnterpriseName: r.FormValue("enterprise_name"),
+		ChannelID:      r.FormValue("channel_id"),
+		ChannelName:    r.FormValue("channel_name"),
+		UserID:         r.FormValue("user_id"),
+		Command:        r.FormValue("command"),
+		Text:           r.FormValue("text"),
+		ResponseUrl:    r.FormValue("response_url"),
+		TriggerID:      r.FormValue("trigger_id"),
+		ApiAppID:       r.FormValue("api_app_id"),
 	}
 
 	var err error
 	var responseText string
 
-	switch request.command {
+	switch request.Command {
 	case "/record":
-		result, err := s.pong.Record(request.channelID, request.teamID, request.text)
+		result, err := s.pong.Record(request.ChannelID, request.TeamID, request.Text)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -76,7 +77,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		responseText = formatMatchResult(result)
 
 	case "/stats":
-		player, err := s.pong.Stats(request.channelID, request.teamID, request.text)
+		player, err := s.pong.Stats(request.ChannelID, request.TeamID, request.Text)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -85,7 +86,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		responseText = formatStats(player)
 
 	case "/leaderboard":
-		leaderboard, err := s.pong.Leaderboard(request.channelID)
+		leaderboard, err := s.pong.Leaderboard(request.ChannelID)
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
 			http.Error(w, "Something went wrong", http.StatusInternalServerError)
@@ -98,7 +99,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(&CommandResponse{"in_channel", responseText})
+	response, err := json.Marshal(&slack.CommandResponse{ResponseType: "in_channel", Text: responseText})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -110,7 +111,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) event(w http.ResponseWriter, r *http.Request) {
-	var request EventRequest
+	var request slack.EventRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		fmt.Printf("err: %v\n", err)
 		return
