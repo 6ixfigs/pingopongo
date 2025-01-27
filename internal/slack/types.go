@@ -41,4 +41,5 @@ type UserInfoResponse struct {
 
 type UserInfo struct {
 	RealName string `json:"real_name"`
+	IsBot    bool   `json:"is_bot"`
 }

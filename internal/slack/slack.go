@@ -41,5 +41,9 @@ func GetUserInfo(userID string) (string, error) {
 		return "", fmt.Errorf("%s", userInfoResponse.Error)
 	}
 
+	if userInfoResponse.User.IsBot {
+		return "", fmt.Errorf("%s", "user is bot")
+	}
+
 	return userInfoResponse.User.RealName, nil
 }
