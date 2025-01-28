@@ -70,29 +70,26 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	case "/record":
 		result, err := s.pong.Record(request.ChannelID, request.TeamID, request.Text)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
+			responseText = formatError(err.Error())
+		} else {
+			responseText = formatMatchResult(result)
 		}
-		responseText = formatMatchResult(result)
 
 	case "/stats":
 		player, err := s.pong.Stats(request.ChannelID, request.TeamID, request.Text)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
+			responseText = formatError(err.Error())
+		} else {
+			responseText = formatStats(player)
 		}
-		responseText = formatStats(player)
 
 	case "/leaderboard":
 		leaderboard, err := s.pong.Leaderboard(request.ChannelID)
 		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
+			responseText = formatError(err.Error())
+		} else {
+			responseText = formatLeaderboard(leaderboard)
 		}
-		responseText = formatLeaderboard(leaderboard)
 
 	default:
 		http.Error(w, "Unsupported command", http.StatusBadRequest)
@@ -101,11 +98,10 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 
 	response, err := json.Marshal(&slack.CommandResponse{ResponseType: "in_channel", Text: responseText})
 	if err != nil {
-		fmt.Printf("err: %v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(response)
 }
@@ -209,4 +205,8 @@ func formatLeaderboard(leaderboard []pong.Player) string {
 	text := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
 
 	return text
+}
+
+func formatError(e string) string {
+	return ":exclamation:" + e
 }
