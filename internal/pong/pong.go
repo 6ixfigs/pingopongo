@@ -16,10 +16,10 @@ type Pong struct {
 }
 
 func New(db *sql.DB) *Pong {
-	return &Pong{db}
+	return &Pong{db: db}
 }
 
-func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, error) {
+func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *MatchResult, err error) {
 	args := strings.Split(commandText, " ")
 	if len(args) < 3 {
 		return nil, fmt.Errorf("not enough arguments in command")
@@ -32,7 +32,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		}
 	}
 
-	err := validateUserMention(args[0])
+	err = validateUserMention(args[0])
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +64,71 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return nil, err
 	}
 
-	player1, err := p.getOrElseAddPlayer(user1ID, channelID, teamID, user1Name)
+	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 
-	player2, err := p.getOrElseAddPlayer(user2ID, channelID, teamID, user2Name)
+	defer func() {
+		if err != nil {
+			if err = tx.Rollback(); err != nil {
+				matchResult = nil
+			}
+		} else {
+			if err = tx.Commit(); err != nil {
+				matchResult = nil
+			}
+		}
+	}()
+
+	query := `
+	WITH inserted AS (
+		INSERT INTO players (user_id, channel_id, team_id, full_name)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (user_id, channel_id, team_id) DO NOTHING
+		RETURNING *
+	)
+	SELECT * FROM inserted
+	UNION
+	SELECT * FROM players
+	WHERE user_id = $1 AND channel_id = $2 AND team_id = $3;
+	`
+	player1 := &Player{}
+	err = tx.QueryRow(query, user1ID, channelID, teamID, user1Name).Scan(
+		&player1.id,
+		&player1.UserID,
+		&player1.channelID,
+		&player1.teamID,
+		&player1.FullName,
+		&player1.MatchesWon,
+		&player1.MatchesLost,
+		&player1.MatchesDrawn,
+		&player1.TotalGamesWon,
+		&player1.TotalGamesLost,
+		&player1.TotalPointsWon,
+		&player1.CurrentStreak,
+		&player1.Elo,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	player2 := &Player{}
+	err = tx.QueryRow(query, user2ID, channelID, teamID, user2Name).Scan(
+		&player2.id,
+		&player2.UserID,
+		&player2.channelID,
+		&player2.teamID,
+		&player2.FullName,
+		&player2.MatchesWon,
+		&player2.MatchesLost,
+		&player2.MatchesDrawn,
+		&player2.TotalGamesWon,
+		&player2.TotalGamesLost,
+		&player2.TotalPointsWon,
+		&player2.CurrentStreak,
+		&player2.Elo,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +136,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	games := args[2:]
 	results := determineGameResults(games, player1, player2)
 
-	matchResult := &MatchResult{}
+	matchResult = &MatchResult{}
 	matchResult.P1 = player1
 	matchResult.P2 = player2
 	for _, result := range results {
@@ -121,22 +180,68 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 	p.updateElo(matchResult)
 
-	err = p.updatePlayer(player1)
+	query = `
+	UPDATE players
+	SET
+		matches_won = $1,
+		matches_drawn = $2,
+		matches_lost = $3,
+		total_games_won = $4,
+		total_games_lost = $5,
+		total_points_won = $6,
+		current_streak = $7,
+		elo = $8
+	WHERE user_id = $9 AND channel_id = $10 AND team_id = $11
+	`
+	_, err = tx.Exec(query,
+		player1.MatchesWon,
+		player1.MatchesDrawn,
+		player1.MatchesLost,
+		player1.TotalGamesWon,
+		player1.TotalGamesLost,
+		player1.TotalPointsWon,
+		player1.CurrentStreak,
+		player1.Elo,
+		player1.UserID,
+		player1.channelID,
+		player1.teamID,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.updatePlayer(player2)
+	_, err = tx.Exec(query,
+		player2.MatchesWon,
+		player2.MatchesDrawn,
+		player2.MatchesLost,
+		player2.TotalGamesWon,
+		player2.TotalGamesLost,
+		player2.TotalPointsWon,
+		player2.CurrentStreak,
+		player2.Elo,
+		player2.UserID,
+		player2.channelID,
+		player2.teamID,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.addMatchToHistory(player1, player2)
+	query = `
+	INSERT INTO match_history (player1_id, player2_id, player1_games_won, player2_games_won)
+	VALUES ($1, $2, $3, $4);
+	`
+
+	_, err = tx.Exec(query, player1.id, player2.id, player1.TotalGamesWon, player2.TotalGamesWon)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert match details: %w", err)
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	return matchResult, nil
+	return matchResult, err
 }
 
 func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
@@ -225,54 +330,6 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 
 }
 
-func (p *Pong) addMatchToHistory(p1, p2 *Player) error {
-	query := `
-	INSERT INTO match_history (player1_id, player2_id, player1_games_won, player2_games_won)
-	VALUES ($1, $2, $3, $4);
-	`
-
-	_, err := p.db.Exec(query, p1.id, p2.id, p1.TotalGamesWon, p2.TotalGamesWon)
-	if err != nil {
-		return fmt.Errorf("failed to insert match details: %w", err)
-	}
-
-	return nil
-}
-
-func (p *Pong) updatePlayer(player *Player) error {
-	query := `
-	UPDATE players
-	SET
-		matches_won = $1,
-		matches_lost = $2,
-		matches_drawn = $3,
-		total_games_won = $4,
-		total_games_lost = $5,
-		total_points_won = $6,
-		current_streak = $7,
-		elo = $8
-	WHERE user_id = $9 AND channel_id = $10 AND team_id = $11
-	`
-	_, err := p.db.Exec(query,
-		player.MatchesWon,
-		player.MatchesDrawn,
-		player.MatchesLost,
-		player.TotalGamesWon,
-		player.TotalGamesLost,
-		player.TotalPointsWon,
-		player.CurrentStreak,
-		player.Elo,
-		player.UserID,
-		player.channelID,
-		player.teamID,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (p *Pong) UpdateChannelID(oldID, newID string) error {
 	query := `
 	UPDATE players
@@ -317,42 +374,6 @@ func (p *Pong) updateElo(result *MatchResult) {
 
 	result.P1.Elo = result.P1.Elo + int(math.Round(k1*(s1-e1)))
 	result.P2.Elo = result.P2.Elo + int(math.Round(k2*(s2-e2)))
-}
-
-func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID, fullName string) (*Player, error) {
-	query := `
-	WITH inserted AS (
-		INSERT INTO players (user_id, channel_id, team_id, full_name)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (user_id, channel_id, team_id) DO NOTHING
-		RETURNING *
-	)
-	SELECT * FROM inserted
-	UNION
-	SELECT * FROM players
-	WHERE user_id = $1 AND channel_id = $2 AND team_id = $3;
-	`
-	player := &Player{}
-	err := p.db.QueryRow(query, userID, channelID, teamID, fullName).Scan(
-		&player.id,
-		&player.UserID,
-		&player.channelID,
-		&player.teamID,
-		&player.FullName,
-		&player.MatchesWon,
-		&player.MatchesLost,
-		&player.MatchesDrawn,
-		&player.TotalGamesWon,
-		&player.TotalGamesLost,
-		&player.TotalPointsWon,
-		&player.CurrentStreak,
-		&player.Elo,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return player, nil
 }
 
 func validateUserMention(rawUserMention string) error {
