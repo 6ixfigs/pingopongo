@@ -13,7 +13,6 @@ import (
 
 type Pong struct {
 	db *sql.DB
-	tx *sql.Tx
 }
 
 func New(db *sql.DB) *Pong {
@@ -65,16 +64,16 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return nil, err
 	}
 
-	p.tx, err = p.db.Begin()
+	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	defer func() {
 		if err != nil {
-			p.tx.Rollback()
+			tx.Rollback()
 		} else {
-			p.tx.Commit()
+			tx.Commit()
 		}
 	}()
 
@@ -91,7 +90,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	WHERE user_id = $1 AND channel_id = $2 AND team_id = $3;
 	`
 	player1 := &Player{}
-	err = p.tx.QueryRow(query, user1ID, channelID, teamID, user1Name).Scan(
+	err = tx.QueryRow(query, user1ID, channelID, teamID, user1Name).Scan(
 		&player1.id,
 		&player1.UserID,
 		&player1.channelID,
@@ -111,7 +110,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	}
 
 	player2 := &Player{}
-	err = p.tx.QueryRow(query, user2ID, channelID, teamID, user2Name).Scan(
+	err = tx.QueryRow(query, user2ID, channelID, teamID, user2Name).Scan(
 		&player2.id,
 		&player2.UserID,
 		&player2.channelID,
@@ -190,7 +189,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		elo = $8
 	WHERE user_id = $9 AND channel_id = $10 AND team_id = $11
 	`
-	_, err = p.tx.Exec(query,
+	_, err = tx.Exec(query,
 		player1.MatchesWon,
 		player1.MatchesDrawn,
 		player1.MatchesLost,
@@ -207,7 +206,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return nil, err
 	}
 
-	_, err = p.tx.Exec(query,
+	_, err = tx.Exec(query,
 		player2.MatchesWon,
 		player2.MatchesDrawn,
 		player2.MatchesLost,
@@ -229,7 +228,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	VALUES ($1, $2, $3, $4);
 	`
 
-	_, err = p.tx.Exec(query, player1.id, player2.id, player1.TotalGamesWon, player2.TotalGamesWon)
+	_, err = tx.Exec(query, player1.id, player2.id, player1.TotalGamesWon, player2.TotalGamesWon)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert match details: %w", err)
 	}
