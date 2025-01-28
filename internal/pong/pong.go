@@ -19,7 +19,7 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db: db}
 }
 
-func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, error) {
+func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *MatchResult, err error) {
 	args := strings.Split(commandText, " ")
 	if len(args) < 3 {
 		return nil, fmt.Errorf("not enough arguments in command")
@@ -32,7 +32,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		}
 	}
 
-	err := validateUserMention(args[0])
+	err = validateUserMention(args[0])
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +71,13 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			if err = tx.Rollback(); err != nil {
+				matchResult = nil
+			}
 		} else {
-			tx.Commit()
+			if err = tx.Commit(); err != nil {
+				matchResult = nil
+			}
 		}
 	}()
 
@@ -132,7 +136,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 	games := args[2:]
 	results := determineGameResults(games, player1, player2)
 
-	matchResult := &MatchResult{}
+	matchResult = &MatchResult{}
 	matchResult.P1 = player1
 	matchResult.P2 = player2
 	for _, result := range results {
@@ -237,7 +241,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return nil, err
 	}
 
-	return matchResult, nil
+	return matchResult, err
 }
 
 func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
