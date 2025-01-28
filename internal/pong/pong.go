@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/6ixfigs/pingypongy/internal/slack"
 )
 
 type Pong struct {
@@ -52,18 +54,27 @@ func (p *Pong) Record(channelID, teamID, commandText string) (*MatchResult, erro
 		return nil, fmt.Errorf("player can't play against himself")
 	}
 
+	user1Name, err := slack.GetUserInfo(user1ID)
+	if err != nil {
+		return nil, err
+	}
+
+	user2Name, err := slack.GetUserInfo(user2ID)
+	if err != nil {
+		return nil, err
+	}
+
+	player1, err := p.getOrElseAddPlayer(user1ID, channelID, teamID, user1Name)
+	if err != nil {
+		return nil, err
+	}
+
+	player2, err := p.getOrElseAddPlayer(user2ID, channelID, teamID, user2Name)
+	if err != nil {
+		return nil, err
+	}
+
 	games := args[2:]
-
-	player1, err := p.getOrElseAddPlayer(user1ID, channelID, teamID)
-	if err != nil {
-		return nil, err
-	}
-
-	player2, err := p.getOrElseAddPlayer(user2ID, channelID, teamID)
-	if err != nil {
-		return nil, err
-	}
-
 	results := determineGameResults(games, player1, player2)
 
 	matchResult := &MatchResult{}
@@ -308,11 +319,11 @@ func (p *Pong) updateElo(result *MatchResult) {
 	result.P2.Elo = result.P2.Elo + int(math.Round(k2*(s2-e2)))
 }
 
-func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID string) (*Player, error) {
+func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID, fullName string) (*Player, error) {
 	query := `
 	WITH inserted AS (
-		INSERT INTO players (user_id, channel_id, team_id)
-		VALUES ($1, $2, $3)
+		INSERT INTO players (user_id, channel_id, team_id, full_name)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (user_id, channel_id, team_id) DO NOTHING
 		RETURNING *
 	)
@@ -322,7 +333,7 @@ func (p *Pong) getOrElseAddPlayer(userID, channelID, teamID string) (*Player, er
 	WHERE user_id = $1 AND channel_id = $2 AND team_id = $3;
 	`
 	player := &Player{}
-	err := p.db.QueryRow(query, userID, channelID, teamID).Scan(
+	err := p.db.QueryRow(query, userID, channelID, teamID, fullName).Scan(
 		&player.id,
 		&player.UserID,
 		&player.channelID,
