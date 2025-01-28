@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -63,7 +64,6 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		ApiAppID:       r.FormValue("api_app_id"),
 	}
 
-	var err error
 	var responseText string
 
 	switch request.Command {
@@ -96,14 +96,32 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(&slack.CommandResponse{ResponseType: "in_channel", Text: responseText})
+	w.WriteHeader(http.StatusOK)
+	sendSlackResponse(request.ResponseUrl, responseText)
+}
+
+func sendSlackResponse(responseURL, responseText string) {
+	responseBody := &slack.CommandResponse{
+		ResponseType: "in_channel",
+		Text:         responseText,
+	}
+
+	data, err := json.Marshal(responseBody)
 	if err != nil {
+		fmt.Printf("Failed to marshal response: %v\n", err)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
+	resp, err := http.Post(responseURL, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		fmt.Printf("Failed to send response to Slack: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Non-OK response from Slack: %v\n", resp.Status)
+	}
 }
 
 func (s *Server) event(w http.ResponseWriter, r *http.Request) {
