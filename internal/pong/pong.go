@@ -184,8 +184,8 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 	UPDATE players
 	SET
 		matches_won = $1,
-		matches_lost = $2,
-		matches_drawn = $3,
+		matches_drawn = $2,
+		matches_lost = $3,
 		total_games_won = $4,
 		total_games_lost = $5,
 		total_points_won = $6,
