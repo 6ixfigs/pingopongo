@@ -64,11 +64,15 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		ApiAppID:       r.FormValue("api_app_id"),
 	}
 
+	var err error
+	var result *pong.MatchResult
+	var player *pong.Player
+	var leaderboard []pong.Player
 	var responseText string
 
 	switch request.Command {
 	case "/record":
-		result, err := s.pong.Record(request.ChannelID, request.TeamID, request.Text)
+		result, err = s.pong.Record(request.ChannelID, request.TeamID, request.Text)
 		if err != nil {
 			responseText = formatError(err.Error())
 		} else {
@@ -76,7 +80,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "/stats":
-		player, err := s.pong.Stats(request.ChannelID, request.TeamID, request.Text)
+		player, err = s.pong.Stats(request.ChannelID, request.TeamID, request.Text)
 		if err != nil {
 			responseText = formatError(err.Error())
 		} else {
@@ -84,7 +88,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "/leaderboard":
-		leaderboard, err := s.pong.Leaderboard(request.ChannelID)
+		leaderboard, err = s.pong.Leaderboard(request.ChannelID)
 		if err != nil {
 			responseText = formatError(err.Error())
 		} else {
@@ -96,14 +100,23 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sendPrivately := false
+	if err != nil {
+		sendPrivately = true
+	}
+
 	w.WriteHeader(http.StatusOK)
-	sendSlackResponse(request.ResponseUrl, responseText)
+	sendSlackResponse(request.ResponseUrl, responseText, sendPrivately)
 }
 
-func sendSlackResponse(responseURL, responseText string) {
+func sendSlackResponse(responseURL, responseText string, private bool) {
 	responseBody := &slack.CommandResponse{
 		ResponseType: "in_channel",
 		Text:         responseText,
+	}
+
+	if private {
+		responseBody.ResponseType = "ephemeral"
 	}
 
 	data, err := json.Marshal(responseBody)
