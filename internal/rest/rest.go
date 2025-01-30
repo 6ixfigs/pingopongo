@@ -38,102 +38,49 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/command", s.command)
-	s.Router.Post("/event", s.event)
+	s.Router.Post("/leaderboards", s.createLeaderboard)
+	s.Router.Get("/leaderboards/{leaderboard_name}", s.getLeaderboard)
+
+	s.Router.Post("/leaderboards/{leaderboard_name}/webhooks", s.registerWebhook)
+	s.Router.Get("/leaderboards/{leaderboard_name}/webhooks", s.registerWebhook)
+	s.Router.Delete("/leaderboards/{leaderboard_name}/webhooks", s.deleteWebhooks)
+
+	s.Router.Post("/leaderbaords/{leaderboard_name}/players", s.createPlayer)
+	s.Router.Get("/leaderboards/{leaderboard_name}/players/{username}", s.getPlayerStats)
+
+	s.Router.Post("/leaderboards/{leaderboard_name}/matches", s.recordMatch)
 }
 
-func (s *Server) command(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+func (s *Server) createLeaderboard(w http.ResponseWriter, r *http.Request) {
 
-	request := &slack.CommandRequest{
-		TeamID:         r.FormValue("team_id"),
-		TeamDomain:     r.FormValue("team_domain"),
-		EnterpriseID:   r.FormValue("enterprise_id"),
-		EnterpriseName: r.FormValue("enterprise_name"),
-		ChannelID:      r.FormValue("channel_id"),
-		ChannelName:    r.FormValue("channel_name"),
-		UserID:         r.FormValue("user_id"),
-		Command:        r.FormValue("command"),
-		Text:           r.FormValue("text"),
-		ResponseUrl:    r.FormValue("response_url"),
-		TriggerID:      r.FormValue("trigger_id"),
-		ApiAppID:       r.FormValue("api_app_id"),
-	}
-
-	var err error
-	var responseText string
-
-	switch request.Command {
-	case "/record":
-		result, err := s.pong.Record(request.ChannelID, request.TeamID, request.Text)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-		responseText = formatMatchResult(result)
-
-	case "/stats":
-		player, err := s.pong.Stats(request.ChannelID, request.TeamID, request.Text)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-		responseText = formatStats(player)
-
-	case "/leaderboard":
-		leaderboard, err := s.pong.Leaderboard(request.ChannelID)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-		responseText = formatLeaderboard(leaderboard)
-
-	default:
-		http.Error(w, "Unsupported command", http.StatusBadRequest)
-		return
-	}
-
-	response, err := json.Marshal(&slack.CommandResponse{ResponseType: "in_channel", Text: responseText})
-	if err != nil {
-		fmt.Printf("err: %v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
 }
 
-func (s *Server) event(w http.ResponseWriter, r *http.Request) {
-	var request slack.EventRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		fmt.Printf("err: %v\n", err)
-		return
-	}
+func (s *Server) registerWebhook(w http.ResponseWriter, r *http.Request) {
 
-	if request.Type == "url_verification" {
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(request.Challenge))
-		return
-	}
+}
 
-	innerEvent := request.Event
-	var err error
+func (s *Server) listWebhooks(w http.ResponseWriter, r *http.Request) {
 
-	switch innerEvent["type"] {
-	case "channel_id_changed":
-		err = s.pong.UpdateChannelID(innerEvent["old_channel_id"], innerEvent["new_channel_id"])
-	default:
-		err = fmt.Errorf("unrecognized event")
-	}
+}
 
-	fmt.Printf("err: %v\n", err)
+func (s *Server) deleteWebhooks(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (s *Server) createPlayer(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (s *Server) getLeaderboard(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (s *Server) getPlayerStats(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func formatMatchResult(result *pong.MatchResult) string {
