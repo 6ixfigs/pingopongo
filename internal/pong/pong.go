@@ -200,7 +200,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		player1.teamID,
 	)
 	if err != nil {
-		return nil, NewInternalError("UPDATE player2 failed.")
+		return nil, NewInternalError("UPDATE player1 failed.")
 	}
 
 	_, err = tx.Exec(query,
@@ -276,7 +276,7 @@ func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 	args := strings.Split(commandText, " ")
 	if len(args) != 1 {
-		return nil, NewUserError("/stats should have exactly one argument, the player tag.")
+		return nil, NewUserError("'/stats' should have exactly one argument, the player tag.")
 	}
 
 	err := validateUserMention(args[0])
