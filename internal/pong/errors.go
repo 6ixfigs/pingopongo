@@ -1,13 +1,25 @@
 package pong
 
-type PongError struct {
-	code int
+type UserError struct {
 	info string
 }
 
-type ErrType int
+type InternalError struct {
+	info string
+}
 
-const (
-	LogicError    ErrType = 100
-	InternalError ErrType = 500
-)
+func NewUserError(info string) error {
+	return &UserError{info: info}
+}
+
+func NewInternalError(info string) error {
+	return &InternalError{info: info}
+}
+
+func (l *UserError) Error() string {
+	return l.info
+}
+
+func (i *InternalError) Error() string {
+	return i.info
+}

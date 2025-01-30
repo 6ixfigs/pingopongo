@@ -22,51 +22,44 @@ func New(db *sql.DB) *Pong {
 func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *MatchResult, err error) {
 	args := strings.Split(commandText, " ")
 	if len(args) < 3 {
-		return nil, fmt.Errorf("not enough arguments in command")
-	}
-
-	for _, userMention := range args[:2] {
-		err := validateUserMention(userMention)
-		if err != nil {
-			return nil, err
-		}
+		return nil, NewUserError("Not enough arguments in command.")
 	}
 
 	err = validateUserMention(args[0])
 	if err != nil {
-		return nil, err
+		return nil, NewUserError(err.Error())
 	}
 
 	err = validateUserMention(args[1])
 	if err != nil {
-		return nil, err
+		return nil, NewUserError(err.Error())
 	}
 
 	err = validateGames(args[2:])
 	if err != nil {
-		return nil, err
+		return nil, NewUserError(err.Error())
 	}
 
 	user1ID := extractUserID(args[0])
 	user2ID := extractUserID(args[1])
 
 	if user1ID == user2ID {
-		return nil, fmt.Errorf("player can't play against himself")
+		return nil, NewUserError("Player cannot play against himself.")
 	}
 
 	user1Name, err := slack.GetUserInfo(user1ID)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("Get user1 info failed.")
 	}
 
 	user2Name, err := slack.GetUserInfo(user2ID)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("Get user2 info failed.")
 	}
 
 	tx, err := p.db.Begin()
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("Begin transaction failed.")
 	}
 
 	defer func() {
@@ -110,7 +103,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		&player1.Elo,
 	)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("INSERT player1 failed.")
 	}
 
 	player2 := &Player{}
@@ -130,7 +123,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		&player2.Elo,
 	)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("INSERT player2 failed.")
 	}
 
 	games := args[2:]
@@ -207,7 +200,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		player1.teamID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("UPDATE player2 failed.")
 	}
 
 	_, err = tx.Exec(query,
@@ -224,7 +217,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		player2.teamID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("UPDATE player2 failed.")
 	}
 
 	query = `
@@ -234,11 +227,7 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 
 	_, err = tx.Exec(query, player1.id, player2.id, player1.TotalGamesWon, player2.TotalGamesWon)
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert match details: %w", err)
-	}
-
-	if err != nil {
-		return nil, err
+		return nil, NewInternalError("INSERT into  match_history failed.")
 	}
 
 	return matchResult, err
@@ -376,8 +365,8 @@ func (p *Pong) updateElo(result *MatchResult) {
 	result.P2.Elo = result.P2.Elo + int(math.Round(k2*(s2-e2)))
 }
 
+regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
 func validateUserMention(rawUserMention string) error {
-	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
 	re := regexp.MustCompile(regex)
 
 	if re.FindString(rawUserMention) == "" {

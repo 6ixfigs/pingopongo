@@ -65,6 +65,7 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var err error
+	var pongErr *pong.PongError
 	var result *pong.MatchResult
 	var player *pong.Player
 	var leaderboard []pong.Player
@@ -72,9 +73,9 @@ func (s *Server) command(w http.ResponseWriter, r *http.Request) {
 
 	switch request.Command {
 	case "/record":
-		result, err = s.pong.Record(request.ChannelID, request.TeamID, request.Text)
-		if err != nil {
-			responseText = formatError(err.Error())
+		result, pongErr = s.pong.Record(request.ChannelID, request.TeamID, request.Text)
+		if pongErr != nil {
+			responseText = formatError(pongErr)
 		} else {
 			responseText = formatMatchResult(result)
 		}
@@ -238,6 +239,15 @@ func formatLeaderboard(leaderboard []pong.Player) string {
 	return text
 }
 
-func formatError(e string) string {
-	return ":exclamation:" + e
+func formatError(e error) string {
+
+	switch e.Code {
+	case pong.UserError:
+		return ":exclamation:" + e.Info
+	case pong.InternalError:
+		return "Something went wrong!"
+
+	default:
+		return "Something went wrong!"
+	}
 }
