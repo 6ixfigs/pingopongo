@@ -6,6 +6,10 @@
 
 **Method:** `POST`
 
+**Headers:**
+
+- `Content-Type: application/json`
+
 **Request Body**:
 
 ```json
@@ -19,6 +23,10 @@
 **Path:** `/leaderboards/{leaderboard_name}/webhooks`
 
 **Method:** `POST`
+
+**Headers:**
+
+- `Content-Type: application/json`
 
 **Request Body:**
 
@@ -48,7 +56,7 @@
 
 **Headers:**
 
-- `Content-Type: application/x-www-form-urlencoded`
+- `Content-Type: application/json`
 
 **Request Body:**
 
@@ -65,7 +73,7 @@
 
 **Headers:**
 
-- `Content-Type: application/x-www-form-urlencoded`
+- `Content-Type: application/json`
 
 **Request Body:**
 
