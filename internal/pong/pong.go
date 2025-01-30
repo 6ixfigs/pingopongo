@@ -276,7 +276,7 @@ func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 	args := strings.Split(commandText, " ")
 	if len(args) != 1 {
-		return nil, fmt.Errorf("/stats command should have exactly 1 argument, the player tag")
+		return nil, NewUserError("/stats should have exactly one argument, the player tag.")
 	}
 
 	err := validateUserMention(args[0])
@@ -312,7 +312,7 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, NewInternalError("SELECT player failed.")
 	}
 
 	return player, nil
@@ -328,7 +328,7 @@ func (p *Pong) UpdateChannelID(oldID, newID string) error {
 
 	_, err := p.db.Exec(query, newID, oldID)
 	if err != nil {
-		return err
+		return NewInternalError("UPDATE channelID failed.")
 	}
 
 	return nil
@@ -365,8 +365,8 @@ func (p *Pong) updateElo(result *MatchResult) {
 	result.P2.Elo = result.P2.Elo + int(math.Round(k2*(s2-e2)))
 }
 
-regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
 func validateUserMention(rawUserMention string) error {
+	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
 	re := regexp.MustCompile(regex)
 
 	if re.FindString(rawUserMention) == "" {
