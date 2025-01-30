@@ -123,6 +123,7 @@ func (p *Pong) Record(leaderboardName, username1, username2, score string) (matc
 		player2.CurrentStreak = 0
 	}
 
+	p1OldElo, p2OldElo := player1.Elo, player2.Elo
 	p.updateElo(winner, loser, matchScore.P1 == matchScore.P2)
 
 	query = `
@@ -180,11 +181,17 @@ func (p *Pong) Record(leaderboardName, username1, username2, score string) (matc
 		return nil, fmt.Errorf("failed to insert match details: %w", err)
 	}
 
-	matchResult = &MatchResult{player1, player2, matchScore}
+	matchResult = &MatchResult{
+		player1,
+		player2,
+		player1.Elo - p1OldElo,
+		player2.Elo - p2OldElo,
+		matchScore,
+	}
 	return matchResult, err
 }
 
-func (p *Pong) Leaderboard(leaderboardName string) (players []Player, err error) {
+func (p *Pong) Leaderboard(leaderboardName string) (rankings []Player, err error) {
 	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
@@ -193,11 +200,11 @@ func (p *Pong) Leaderboard(leaderboardName string) (players []Player, err error)
 	defer func() {
 		if err != nil {
 			if err = tx.Rollback(); err != nil {
-				players = nil
+				rankings = nil
 			}
 		} else {
 			if err = tx.Commit(); err != nil {
-				players = nil
+				rankings = nil
 			}
 		}
 	}()
@@ -241,14 +248,14 @@ func (p *Pong) Leaderboard(leaderboardName string) (players []Player, err error)
 			return nil, err
 		}
 
-		players = append(players, player)
+		rankings = append(rankings, player)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return players, nil
+	return rankings, nil
 }
 
 func (p *Pong) Stats(leaderboardName, username string) (player *Player, err error) {

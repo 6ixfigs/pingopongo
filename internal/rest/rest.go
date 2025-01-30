@@ -82,37 +82,24 @@ func (s *Server) getPlayerStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func formatMatchResult(result *pong.MatchResult) string {
-	players := fmt.Sprintf("<@%s> vs <@%s>", result.P1.UserID, result.P2.UserID)
-
-	var gameResults string
-	for i, g := range result.Games {
-		gameResults += fmt.Sprintf("- Game %d: %d-%d\n", i+1, g.P1PointsWon, g.P2PointsWon)
-	}
-
-	var conclusion string
-	if result.IsDraw {
-		conclusion = "Draw!"
-	} else {
-		conclusion = fmt.Sprintf(":trophy: Winner: <@%s> %d-%d",
-			result.Winner.UserID,
-			result.P1GamesWon,
-			result.P2GamesWon,
-		)
-	}
-
-	response := fmt.Sprintf("Match recorded:\n%s\n%s\n%s", players, gameResults, conclusion)
-	return response
+	return fmt.Sprintf("Match recorded: (%+d) %s %d - %d %s (%+d)!",
+		result.P1EloChange,
+		result.P1.Username,
+		result.Score.P1,
+		result.Score.P2,
+		result.P2.Username,
+		result.P2EloChange,
+	)
 }
 
 func formatStats(player *pong.Player) string {
-	r := `Stats for <@%s>:
+	r := `Stats for %s:
 	- Matches played: %d
 	- Matches won: %d
 	- Matches lost: %d
 	- Matches drawn: %d
 	- Games won: %d
 	- Games lost: %d
-	- Points won: %d
 	- Win ratio: %.2f%%
 	- Current streak: %d
 	- Elo: %d
@@ -121,28 +108,27 @@ func formatStats(player *pong.Player) string {
 	matchesPlayed := player.MatchesWon + player.MatchesLost + player.MatchesDrawn
 	return fmt.Sprintf(
 		r,
-		player.UserID,
+		player.Username,
 		matchesPlayed,
 		player.MatchesWon,
 		player.MatchesLost,
 		player.MatchesDrawn,
 		player.TotalGamesWon,
 		player.TotalGamesLost,
-		player.TotalPointsWon,
 		float64(player.MatchesWon)/float64(matchesPlayed)*100,
 		player.CurrentStreak,
 		player.Elo,
 	)
 }
 
-func formatLeaderboard(leaderboard []pong.Player) string {
+func formatLeaderboard(leaderboardName string, leaderboard []pong.Player) string {
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio", "Elo"})
 	for rank, player := range leaderboard {
 		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
 		t.AppendRow(table.Row{
 			rank + 1,
-			player.FullName,
+			player.Username,
 			player.MatchesWon,
 			player.MatchesDrawn,
 			player.MatchesLost,
@@ -151,7 +137,7 @@ func formatLeaderboard(leaderboard []pong.Player) string {
 			player.Elo,
 		})
 	}
-	text := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
+	text := fmt.Sprintf("%s leaderboard:\n%s", leaderboardName, t.Render())
 
 	return text
 }
