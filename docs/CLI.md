@@ -56,10 +56,10 @@ pongo create-player <leaderboard-name> <username>
 **Command:**
 
 ```
-pongo record <leaderboard-name> <player1> <player2> [scores...]
+pongo record <leaderboard-name> <player1> <player2> <score>
 ```
 
-**Description:** Records a match result between two players. The scores are provided as a list of game scores.
+**Description:** Records a match result between two players.
 
 ## Retrieve a Leaderboard
 
