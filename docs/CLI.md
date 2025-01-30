@@ -10,7 +10,7 @@ pongo create-leaderboard <name>
 
 **Description:** Creates a new leaderboard with the specified name.
 
-## Add a Webhook to a Leaderboard
+## Register a Webhook to a Leaderboard
 
 **Command:**
 
