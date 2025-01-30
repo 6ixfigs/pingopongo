@@ -66,10 +66,10 @@ pongo record <leaderboard-name> <player1> <player2> <score>
 **Command:**
 
 ```bash
-pongo leaderboard <leaderboard-name> [--limit <limit>]
+pongo leaderboard <leaderboard-name>
 ```
 
-**Description:** Retrieves the leaderboard. Optionally, limit the number of players displayed.
+**Description:** Retrieves the leaderboard.
 
 ## Retrieve Player Stats
 

@@ -81,10 +81,6 @@ player1=username1&player2=username2&score=2-1
 
 **Method:** `GET`
 
-**Query Parameters:**
-
-- `limit`: Optional - Number of top players to return. If 0, return all players.
-
 ## Retrieve Player Stats
 
 **Path:** `/leaderboards/{leaderboard_name}/players/{username}`

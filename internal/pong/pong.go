@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -185,27 +184,54 @@ func (p *Pong) Record(leaderboardName, username1, username2, score string) (matc
 	return matchResult, err
 }
 
-func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
+func (p *Pong) Leaderboard(leaderboardName string) (players []Player, err error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			if err = tx.Rollback(); err != nil {
+				players = nil
+			}
+		} else {
+			if err = tx.Commit(); err != nil {
+				players = nil
+			}
+		}
+	}()
+
 	query := `
-		SELECT full_name, matches_won, matches_drawn, matches_lost, elo
+	SELECT FROM leaderboards
+	WHERE name = $1
+	`
+	leaderboard := &Leaderboard{}
+	err = tx.QueryRow(query, leaderboardName).Scan(
+		&leaderboard.ID,
+		&leaderboard.Name,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	query = `
+		SELECT username, matches_won, matches_drawn, matches_lost, elo
 		FROM players
-		WHERE channel_id = $1
+		WHERE leaderboard_id = $1
 		ORDER BY elo DESC
-		LIMIT 15
 	`
 
-	rows, err := p.db.Query(query, channelID)
+	rows, err := p.db.Query(query, leaderboard.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var players []Player
-
 	for rows.Next() {
 		var player Player
 		err = rows.Scan(
-			&player.FullName,
+			&player.Username,
 			&player.MatchesWon,
 			&player.MatchesDrawn,
 			&player.MatchesLost,
@@ -225,44 +251,55 @@ func (p *Pong) Leaderboard(channelID string) ([]Player, error) {
 	return players, nil
 }
 
-func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
-	args := strings.Split(commandText, " ")
-	if len(args) != 1 {
-		return nil, fmt.Errorf("/stats command should have exactly 1 argument, the player tag")
-	}
-
-	err := validateUserMention(args[0])
+func (p *Pong) Stats(leaderboardName, username string) (player *Player, err error) {
+	tx, err := p.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 
-	userID := extractUserID(args[0])
+	defer func() {
+		if err != nil {
+			if err = tx.Rollback(); err != nil {
+				player = nil
+			}
+		} else {
+			if err = tx.Commit(); err != nil {
+				player = nil
+			}
+		}
+	}()
 
-	querySelect := `
-	SELECT matches_won, matches_lost, matches_drawn, total_games_won, total_games_lost, total_points_won, current_streak, elo
-	FROM players
-	WHERE 	user_id		= $1
-		AND channel_id 	= $2
-		AND team_id	= $3
+	query := `
+	SELECT FROM leaderboards
+	WHERE name = $1
+	`
+	leaderboard := &Leaderboard{}
+	err = tx.QueryRow(query, leaderboardName).Scan(
+		&leaderboard.ID,
+		&leaderboard.Name,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	query = `
+	SELECT * FROM players
+	WHERE 	leaderboard_id = $1 AND username = $2
 	`
 
-	player := &Player{UserID: userID, channelID: channelID, teamID: teamID}
-	err = p.db.QueryRow(
-		querySelect,
-		userID,
-		channelID,
-		teamID,
-	).Scan(
+	err = p.db.QueryRow(query, leaderboard.ID, username).Scan(
+		&player.ID,
+		&player.LeaderboardID,
+		&player.Username,
 		&player.MatchesWon,
-		&player.MatchesLost,
 		&player.MatchesDrawn,
+		&player.MatchesLost,
 		&player.TotalGamesWon,
 		&player.TotalGamesLost,
-		&player.TotalPointsWon,
 		&player.CurrentStreak,
 		&player.Elo,
+		&player.CreatedAt,
 	)
-
 	if err != nil {
 		return nil, err
 	}
