@@ -15,7 +15,7 @@ pongo create-leaderboard <name>
 **Command:**
 
 ```bash
-pongo add-webhook <leaderboard-name> <url>
+pongo register-webhook <leaderboard-name> <url>
 ```
 
 **Description:** Registers a webhook for notifications on the specified leaderboard.
