@@ -14,7 +14,7 @@
 }
 ```
 
-## Add a Webhook to a Leaderboard
+## Register a Webhook on a Leaderboard
 
 **Path:** `/leaderboards/{leaderboard_name}/webhooks`
 
