@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 
@@ -14,6 +15,7 @@ import (
 type Server struct {
 	Router chi.Router
 	Config *config.Config
+	db     *sql.DB
 	pong   *pong.Pong
 }
 
@@ -31,6 +33,7 @@ func NewServer() (*Server, error) {
 	return &Server{
 		Router: chi.NewRouter(),
 		Config: cfg,
+		db:     db,
 		pong:   pong.New(db),
 	}, nil
 }
@@ -70,25 +73,63 @@ func (s *Server) createPlayer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
+	leaderboardName := chi.URLParam(r, "leaderboard_name")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Something went wrong", http.StatusOK)
+		return
+	}
 
+	username1 := r.FormValue("player1")
+	username2 := r.FormValue("player2")
+	score := r.FormValue("score")
+
+	result, err := s.pong.Record(leaderboardName, username1, username2, score)
+	if err != nil {
+		http.Error(w, "Something went wrong", http.StatusOK)
+		return
+	}
+
+	response := formatMatchResult(result)
+
+	w.Write([]byte(response))
 }
 
 func (s *Server) getLeaderboard(w http.ResponseWriter, r *http.Request) {
+	leaderboardName := chi.URLParam(r, "leaderboard_name")
 
+	rankings, err := s.pong.Leaderboard(leaderboardName)
+	if err != nil {
+		http.Error(w, "Something went wrong", http.StatusOK)
+		return
+	}
+
+	response := formatLeaderboard(leaderboardName, rankings)
+
+	w.Write([]byte(response))
 }
 
 func (s *Server) getPlayerStats(w http.ResponseWriter, r *http.Request) {
+	leaderboardName := chi.URLParam(r, "leaderboard_name")
+	username := chi.URLParam(r, "username")
 
+	player, err := s.pong.Stats(leaderboardName, username)
+	if err != nil {
+		http.Error(w, "Something went wrong", http.StatusOK)
+	}
+
+	response := formatStats(player)
+
+	w.Write([]byte(response))
 }
 
 func formatMatchResult(result *pong.MatchResult) string {
 	return fmt.Sprintf("Match recorded: (%+d) %s %d - %d %s (%+d)!",
-		result.P1EloChange,
+		result.P1EloDiff,
 		result.P1.Username,
 		result.Score.P1,
 		result.Score.P2,
 		result.P2.Username,
-		result.P2EloChange,
+		result.P2EloDiff,
 	)
 }
 
