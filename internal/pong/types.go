@@ -25,14 +25,6 @@ type MatchScore struct {
 	P2 int
 }
 
-type GameResult struct {
-	Winner      *Player
-	P1          *Player
-	P2          *Player
-	P1PointsWon int
-	P2PointsWon int
-}
-
 type MatchResult struct {
 	P1         *Player
 	P2         *Player
