@@ -26,7 +26,7 @@ type MatchScore struct {
 }
 
 type MatchResult struct {
-	P1         *Player
-	P2         *Player
-	MatchScore *MatchScore
+	P1    *Player
+	P2    *Player
+	Score *MatchScore
 }
