@@ -360,33 +360,3 @@ func parseScore(score string) (*MatchScore, error) {
 
 	return &MatchScore{p1Score, p2Score}, nil
 }
-
-func determineGameResults(games []string, p1, p2 *Player) []GameResult {
-
-	var results []GameResult
-
-	for _, game := range games {
-		result := GameResult{}
-		result.P1 = p1
-		result.P2 = p2
-
-		scores := strings.Split(game, "-")
-
-		result.P1PointsWon, _ = strconv.Atoi(scores[0])
-		result.P2PointsWon, _ = strconv.Atoi(scores[1])
-
-		if result.P1PointsWon > result.P2PointsWon {
-			result.Winner = p1
-		} else {
-			result.Winner = p2
-		}
-
-		results = append(results, result)
-	}
-
-	return results
-}
-
-func extractUserID(rawMention string) string {
-	return strings.Split(strings.TrimPrefix(rawMention, "<@"), "|")[0]
-}
