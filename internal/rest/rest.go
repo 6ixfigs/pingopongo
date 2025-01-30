@@ -1,14 +1,12 @@
 package rest
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/6ixfigs/pingypongy/internal/pong"
-	"github.com/6ixfigs/pingypongy/internal/slack"
 	"github.com/go-chi/chi/v5"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
