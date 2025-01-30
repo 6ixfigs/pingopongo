@@ -4,7 +4,5 @@ CREATE TABLE matches (
 	player1_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
 	player2_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
 	score VARCHAR(10) NOT NULL,
-	winner_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
 	played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CHECK (winner_id IN (player1_id, player2_id))
 );

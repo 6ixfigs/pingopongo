@@ -9,9 +9,20 @@ type Player struct {
 	MatchesLost    int
 	TotalGamesWon  int
 	TotalGamesLost int
-	TotalPointsWon int
 	CurrentStreak  int
 	Elo            int
+	CreatedAt      string
+}
+
+type Leaderboard struct {
+	ID        int
+	Name      string
+	CreatedAt string
+}
+
+type MatchScore struct {
+	P1 int
+	P2 int
 }
 
 type GameResult struct {
@@ -23,11 +34,7 @@ type GameResult struct {
 }
 
 type MatchResult struct {
-	Winner     *Player
 	P1         *Player
 	P2         *Player
-	P1GamesWon int
-	P2GamesWon int
-	IsDraw     bool
-	Games      []GameResult
+	MatchScore *MatchScore
 }

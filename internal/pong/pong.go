@@ -7,8 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/6ixfigs/pingypongy/internal/slack"
 )
 
 type Pong struct {
@@ -19,49 +17,14 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db: db}
 }
 
-func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *MatchResult, err error) {
-	args := strings.Split(commandText, " ")
-	if len(args) < 3 {
-		return nil, fmt.Errorf("not enough arguments in command")
-	}
-
-	for _, userMention := range args[:2] {
-		err := validateUserMention(userMention)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = validateUserMention(args[0])
+func (p *Pong) Record(leaderboardName, username1, username2, score string) (matchResult *MatchResult, err error) {
+	matchScore, err := parseScore(score)
 	if err != nil {
 		return nil, err
 	}
 
-	err = validateUserMention(args[1])
-	if err != nil {
-		return nil, err
-	}
-
-	err = validateGames(args[2:])
-	if err != nil {
-		return nil, err
-	}
-
-	user1ID := extractUserID(args[0])
-	user2ID := extractUserID(args[1])
-
-	if user1ID == user2ID {
+	if username1 == username2 {
 		return nil, fmt.Errorf("player can't play against himself")
-	}
-
-	user1Name, err := slack.GetUserInfo(user1ID)
-	if err != nil {
-		return nil, err
-	}
-
-	user2Name, err := slack.GetUserInfo(user2ID)
-	if err != nil {
-		return nil, err
 	}
 
 	tx, err := p.db.Begin()
@@ -82,103 +45,86 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 	}()
 
 	query := `
-	WITH inserted AS (
-		INSERT INTO players (user_id, channel_id, team_id, full_name)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (user_id, channel_id, team_id) DO NOTHING
-		RETURNING *
+	SELECT id, name FROM leaderboards
+	WHERE name = $1
+	`
+
+	leaderboard := &Leaderboard{}
+	err = tx.QueryRow(query, leaderboardName).Scan(
+		&leaderboard.ID,
+		&leaderboard.Name,
 	)
-	SELECT * FROM inserted
-	UNION
+	if err != nil {
+		return nil, err
+	}
+
+	query = `
 	SELECT * FROM players
-	WHERE user_id = $1 AND channel_id = $2 AND team_id = $3;
+	WHERE leaderboard_id = $1 AND username = $2
 	`
 	player1 := &Player{}
-	err = tx.QueryRow(query, user1ID, channelID, teamID, user1Name).Scan(
-		&player1.id,
-		&player1.UserID,
-		&player1.channelID,
-		&player1.teamID,
-		&player1.FullName,
+	err = tx.QueryRow(query, leaderboard.ID, username1).Scan(
+		&player1.ID,
+		&player1.LeaderboardID,
+		&player1.Username,
 		&player1.MatchesWon,
-		&player1.MatchesLost,
 		&player1.MatchesDrawn,
+		&player1.MatchesLost,
 		&player1.TotalGamesWon,
 		&player1.TotalGamesLost,
-		&player1.TotalPointsWon,
 		&player1.CurrentStreak,
 		&player1.Elo,
+		&player1.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	player2 := &Player{}
-	err = tx.QueryRow(query, user2ID, channelID, teamID, user2Name).Scan(
-		&player2.id,
-		&player2.UserID,
-		&player2.channelID,
-		&player2.teamID,
-		&player2.FullName,
+	err = tx.QueryRow(query, leaderboard.ID, username2).Scan(
+		&player2.ID,
+		&player2.LeaderboardID,
+		&player2.Username,
 		&player2.MatchesWon,
-		&player2.MatchesLost,
 		&player2.MatchesDrawn,
+		&player2.MatchesLost,
 		&player2.TotalGamesWon,
 		&player2.TotalGamesLost,
-		&player2.TotalPointsWon,
 		&player2.CurrentStreak,
 		&player2.Elo,
+		&player2.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	games := args[2:]
-	results := determineGameResults(games, player1, player2)
+	player1.TotalGamesWon += matchScore.P1
+	player1.TotalGamesLost += matchScore.P2
 
-	matchResult = &MatchResult{}
-	matchResult.P1 = player1
-	matchResult.P2 = player2
-	for _, result := range results {
-		player1.TotalPointsWon += result.P1PointsWon
-		player2.TotalPointsWon += result.P2PointsWon
+	player2.TotalGamesWon += matchScore.P2
+	player2.TotalGamesLost += matchScore.P1
 
-		if player1 == result.Winner {
-			matchResult.P1GamesWon++
-		} else {
-			matchResult.P2GamesWon++
-		}
-	}
-
-	player1.TotalGamesWon += matchResult.P1GamesWon
-	player1.TotalGamesLost += matchResult.P2GamesWon
-
-	player2.TotalGamesWon += matchResult.P2GamesWon
-	player2.TotalGamesLost += matchResult.P1GamesWon
-
-	matchResult.Games = results
-
-	if matchResult.P1GamesWon > matchResult.P2GamesWon {
-		matchResult.Winner = player1
+	winner, loser := player1, player2
+	if matchScore.P1 > matchScore.P2 {
 		player1.MatchesWon++
 		player1.CurrentStreak++
 		player2.MatchesLost++
 		player2.CurrentStreak = 0
-	} else if matchResult.P2GamesWon > matchResult.P1GamesWon {
-		matchResult.Winner = player2
+	} else if matchScore.P2 > matchScore.P1 {
+		winner = player2
+		loser = player1
 		player1.MatchesLost++
 		player1.CurrentStreak = 0
 		player2.MatchesWon++
 		player2.CurrentStreak++
 	} else {
-		matchResult.IsDraw = true
 		player1.MatchesDrawn++
 		player1.CurrentStreak = 0
 		player2.MatchesDrawn++
 		player2.CurrentStreak = 0
 	}
 
-	p.updateElo(matchResult)
+	p.updateElo(winner, loser, matchScore.P1 == matchScore.P2)
 
 	query = `
 	UPDATE players
@@ -188,10 +134,9 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		matches_lost = $3,
 		total_games_won = $4,
 		total_games_lost = $5,
-		total_points_won = $6,
-		current_streak = $7,
-		elo = $8
-	WHERE user_id = $9 AND channel_id = $10 AND team_id = $11
+		current_streak = $6,
+		elo = $7
+	WHERE id = $8 
 	`
 	_, err = tx.Exec(query,
 		player1.MatchesWon,
@@ -199,12 +144,9 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		player1.MatchesLost,
 		player1.TotalGamesWon,
 		player1.TotalGamesLost,
-		player1.TotalPointsWon,
 		player1.CurrentStreak,
 		player1.Elo,
-		player1.UserID,
-		player1.channelID,
-		player1.teamID,
+		player1.ID,
 	)
 	if err != nil {
 		return nil, err
@@ -216,31 +158,30 @@ func (p *Pong) Record(channelID, teamID, commandText string) (matchResult *Match
 		player2.MatchesLost,
 		player2.TotalGamesWon,
 		player2.TotalGamesLost,
-		player2.TotalPointsWon,
 		player2.CurrentStreak,
 		player2.Elo,
-		player2.UserID,
-		player2.channelID,
-		player2.teamID,
+		player2.ID,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	query = `
-	INSERT INTO match_history (player1_id, player2_id, player1_games_won, player2_games_won)
+	INSERT INTO matches (leaderboard_id, player1_id, player2_id, score)
 	VALUES ($1, $2, $3, $4);
 	`
 
-	_, err = tx.Exec(query, player1.id, player2.id, player1.TotalGamesWon, player2.TotalGamesWon)
+	_, err = tx.Exec(query,
+		leaderboard.ID,
+		player1.ID,
+		player2.ID,
+		score,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert match details: %w", err)
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
+	matchResult = &MatchResult{player1, player2, matchScore}
 	return matchResult, err
 }
 
@@ -330,27 +271,12 @@ func (p *Pong) Stats(channelID, teamID, commandText string) (*Player, error) {
 
 }
 
-func (p *Pong) UpdateChannelID(oldID, newID string) error {
-	query := `
-	UPDATE players
-	SET channel_id = $1
-	WHERE channel_id = $2
-	`
+func (p *Pong) updateElo(winner, loser *Player, isDraw bool) {
+	qW := math.Pow(10, float64(winner.Elo)/400)
+	qL := math.Pow(10, float64(loser.Elo)/400)
 
-	_, err := p.db.Exec(query, newID, oldID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (p *Pong) updateElo(result *MatchResult) {
-	q1 := math.Pow(10, float64(result.P1.Elo)/400)
-	q2 := math.Pow(10, float64(result.P2.Elo)/400)
-
-	e1 := q1 / (q1 + q2)
-	e2 := q2 / (q1 + q2)
+	eW := qW / (qW + qL)
+	eL := qL / (qW + qL)
 
 	kFactor := func(rating int) float64 {
 		if rating < 2100 {
@@ -362,63 +288,40 @@ func (p *Pong) updateElo(result *MatchResult) {
 		return 16
 	}
 
-	k1 := kFactor(result.P1.Elo)
-	k2 := kFactor(result.P2.Elo)
+	kW := kFactor(winner.Elo)
+	kL := kFactor(loser.Elo)
 
-	s1, s2 := 1.0, 0.0
-	if result.Winner == result.P2 {
-		s1, s2 = 0.0, 1.0
-	} else if result.IsDraw {
-		s1, s2 = 0.5, 0.5
+	sW, sL := 1.0, 0.0
+	if isDraw {
+		sW, sL = 0.5, 0.5
 	}
 
-	result.P1.Elo = result.P1.Elo + int(math.Round(k1*(s1-e1)))
-	result.P2.Elo = result.P2.Elo + int(math.Round(k2*(s2-e2)))
+	winner.Elo = winner.Elo + int(math.Round(kW*(sW-eW)))
+	loser.Elo = loser.Elo + int(math.Round(kL*(sL-eL)))
 }
 
-func validateUserMention(rawUserMention string) error {
-	regex := `<@([A-Z0-9]+)\|([a-zA-Z0-9._-]+)>`
-	re := regexp.MustCompile(regex)
-
-	if re.FindString(rawUserMention) == "" {
-		return fmt.Errorf("not a valid user")
+func parseScore(score string) (*MatchScore, error) {
+	if !strings.Contains(score, "-") {
+		return nil, fmt.Errorf("match score %s needs to have '-' separator", score)
 	}
 
-	return nil
-}
+	splitScore := strings.Split(score, "-")
 
-func validateGames(games []string) error {
-	for _, game := range games {
-		if !strings.Contains(game, "-") {
-			return fmt.Errorf("game %s needs to have '-' separator", game)
-		}
-
-		scores := strings.Split(game, "-")
-
-		if len(scores) != 2 {
-			return fmt.Errorf("invalid game format: %s", game)
-		}
-
-		score1, err := strconv.Atoi(scores[0])
-		if err != nil {
-			return fmt.Errorf("player1 score needs to be a number")
-		}
-
-		score2, err := strconv.Atoi(scores[1])
-		if err != nil {
-			return fmt.Errorf("player2 score needs to be a number")
-		}
-
-		if score1 > 11 || score2 > 11 {
-			if !(math.Abs(float64(score1-score2)) == 2) {
-				return fmt.Errorf("the difference in scores of the game %s should be 2", game)
-			}
-		} else if score1 != 11 && score2 != 11 {
-			return fmt.Errorf("one of the scores in the game %s should be 11", game)
-		}
+	if len(splitScore) != 2 {
+		return nil, fmt.Errorf("match invalid score format: %s", score)
 	}
 
-	return nil
+	p1Score, err := strconv.Atoi(splitScore[0])
+	if err != nil {
+		return nil, fmt.Errorf("player1 score needs to be a number")
+	}
+
+	p2Score, err := strconv.Atoi(splitScore[1])
+	if err != nil {
+		return nil, fmt.Errorf("player2 score needs to be a number")
+	}
+
+	return &MatchScore{p1Score, p2Score}, nil
 }
 
 func determineGameResults(games []string, p1, p2 *Player) []GameResult {
