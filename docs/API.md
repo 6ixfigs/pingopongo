@@ -8,14 +8,12 @@
 
 **Headers:**
 
-- `Content-Type: application/json`
+- `Content-Type: application/x-www-form-url-encoded`
 
 **Request Body**:
 
-```json
-{
-    "name": "unique-leaderboard-name"
-}
+```x-www-form-urlencoded
+name=unique-leaderboard-name
 ```
 
 ## Register a Webhook on a Leaderboard
@@ -26,14 +24,12 @@
 
 **Headers:**
 
-- `Content-Type: application/json`
+- `Content-Type: application/x-www-form-url-encoded`
 
 **Request Body:**
 
-```json
-{
-    "url": "https://example.com/webhook-endpoint"
-}
+```x-www-form-urlencoded
+url=https://example.com/webhook-endpoint
 ```
 
 ## List Webhooks for a Leaderboard
@@ -56,14 +52,12 @@
 
 **Headers:**
 
-- `Content-Type: application/json`
+- `Content-Type: application/x-www-form-url-encoded`
 
 **Request Body:**
 
-```json
-{
-    "username": "player_username"
-}
+```x-www-form-urlencoded
+username=player_username
 ```
 ## Record a Match Result
 
@@ -73,16 +67,12 @@
 
 **Headers:**
 
-- `Content-Type: application/json`
+- `Content-Type: application/x-www-form-url-encoded`
 
 **Request Body:**
 
-```json
-{
-    "player1": "username1"
-    "player2": "username2"
-    "scores": ["11-9", "14-12", "3-11"]
-}
+```x-www-form-urlencoded
+player1=username1&player2=username2&score=2-1
 ```
 
 ## Retrieve the Leaderboard
