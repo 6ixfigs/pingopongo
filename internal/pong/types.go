@@ -1,11 +1,9 @@
 package pong
 
 type Player struct {
-	id             int
-	UserID         string
-	channelID      string
-	teamID         string
-	FullName       string
+	ID             int
+	LeaderboardID  int
+	Username       string
 	MatchesWon     int
 	MatchesDrawn   int
 	MatchesLost    int
