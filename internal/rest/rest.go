@@ -33,6 +33,7 @@ func NewServer() (*Server, error) {
 	return &Server{
 		Router: chi.NewRouter(),
 		Config: cfg,
+		db:     db,
 		pong:   pong.New(db),
 	}, nil
 }
@@ -53,7 +54,7 @@ func (s *Server) MountRoutes() {
 
 func (s *Server) createLeaderboard(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -61,7 +62,7 @@ func (s *Server) createLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 	err := s.pong.CreateLeaderboard(leaderboardName)
 	if err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -69,7 +70,20 @@ func (s *Server) createLeaderboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) registerWebhook(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	leaderboardName := chi.URLParam(r, "leaderboard_name")
+	url := r.FormValue("url")
+
+	err := s.pong.RegisterWebhook(leaderboardName, url)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	w.Write([]byte(fmt.Sprintf("Registered webhook %s on leaderboard %s", url, leaderboardName)))
 }
 
 func (s *Server) listWebhooks(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +101,7 @@ func (s *Server) createPlayer(w http.ResponseWriter, r *http.Request) {
 func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
 	leaderboardName := chi.URLParam(r, "leaderboard_name")
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -97,7 +111,7 @@ func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.pong.Record(leaderboardName, username1, username2, score)
 	if err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -111,7 +125,7 @@ func (s *Server) getLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 	rankings, err := s.pong.Leaderboard(leaderboardName)
 	if err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -126,7 +140,7 @@ func (s *Server) getPlayerStats(w http.ResponseWriter, r *http.Request) {
 
 	player, err := s.pong.Stats(leaderboardName, username)
 	if err != nil {
-		http.Error(w, "Something went wrong", http.StatusOK)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	response := formatStats(player)

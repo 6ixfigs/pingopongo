@@ -30,12 +30,47 @@ func (p *Pong) CreateLeaderboard(leaderboardName string) (err error) {
 	}()
 
 	query := `
-	INSERT INTO leaderboards VALUES ($1)
+	INSERT INTO leaderboards (name) 
+	VALUES ($1)
 	`
 
 	_, err = tx.Exec(query, leaderboardName)
 
 	return err
+}
+
+func (p *Pong) RegisterWebhook(leaderboardName, url string) (err error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			err = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	query := `
+	SELECT id, name FROM leaderboards
+	WHERE name = $1	
+	`
+
+	leaderboard := &Leaderboard{}
+	err = tx.QueryRow(query, leaderboardName).Scan(
+		&leaderboard.ID,
+		&leaderboard.Name,
+	)
+
+	query = `
+	INSERT INTO webhooks (leaderboard_id, url)
+	VALUES ($1, $2)
+	`
+	_, err = tx.Exec(query, leaderboard.ID, url)
+
+	return err
+
 }
 
 func (p *Pong) Record(leaderboardName, username1, username2, score string) (matchResult *MatchResult, err error) {
