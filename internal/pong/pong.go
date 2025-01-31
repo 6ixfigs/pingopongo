@@ -16,6 +16,28 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db: db}
 }
 
+func (p *Pong) CreateLeaderboard(leaderboardName string) (err error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			err = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	query := `
+	INSERT INTO leaderboards VALUES ($1)
+	`
+
+	_, err = tx.Exec(query, leaderboardName)
+
+	return err
+}
+
 func (p *Pong) Record(leaderboardName, username1, username2, score string) (matchResult *MatchResult, err error) {
 	matchScore, err := parseScore(score)
 	if err != nil {

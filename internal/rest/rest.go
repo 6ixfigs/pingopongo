@@ -33,7 +33,6 @@ func NewServer() (*Server, error) {
 	return &Server{
 		Router: chi.NewRouter(),
 		Config: cfg,
-		db:     db,
 		pong:   pong.New(db),
 	}, nil
 }
@@ -53,7 +52,20 @@ func (s *Server) MountRoutes() {
 }
 
 func (s *Server) createLeaderboard(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Something went wrong", http.StatusOK)
+		return
+	}
 
+	leaderboardName := r.FormValue("name")
+
+	err := s.pong.CreateLeaderboard(leaderboardName)
+	if err != nil {
+		http.Error(w, "Something went wrong", http.StatusOK)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("Leaderboard %s created!", leaderboardName)))
 }
 
 func (s *Server) registerWebhook(w http.ResponseWriter, r *http.Request) {
