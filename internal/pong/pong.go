@@ -33,7 +33,6 @@ func (p *Pong) CreateLeaderboard(leaderboardName string) (err error) {
 	INSERT INTO leaderboards (name) 
 	VALUES ($1)
 	`
-
 	_, err = tx.Exec(query, leaderboardName)
 
 	return err
@@ -62,6 +61,9 @@ func (p *Pong) RegisterWebhook(leaderboardName, url string) (err error) {
 		&leaderboard.ID,
 		&leaderboard.Name,
 	)
+	if err != nil {
+		return err
+	}
 
 	query = `
 	INSERT INTO webhooks (leaderboard_id, url)
@@ -70,7 +72,61 @@ func (p *Pong) RegisterWebhook(leaderboardName, url string) (err error) {
 	_, err = tx.Exec(query, leaderboard.ID, url)
 
 	return err
+}
 
+func (p *Pong) ListWebhooks(leaderboardName string) (webhooks []string, err error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				webhooks = nil
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				webhooks = nil
+			}
+		}
+	}()
+
+	query := `
+	SELECT id, name FROM leaderboards
+	WHERE name = $1
+	`
+	leaderboard := &Leaderboard{}
+	err = tx.QueryRow(query, leaderboardName).Scan(
+		&leaderboard.ID,
+		&leaderboard.Name,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	query = `
+	SELECT url FROM webhooks
+	WHERE leaderboard_id = $1
+	`
+	rows, err := tx.Query(query, leaderboard.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		webhooks = append(webhooks, url)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return webhooks, nil
 }
 
 func (p *Pong) Record(leaderboardName, username1, username2, score string) (matchResult *MatchResult, err error) {
@@ -245,7 +301,7 @@ func (p *Pong) Record(leaderboardName, username1, username2, score string) (matc
 		player2.Elo - p2OldElo,
 		matchScore,
 	}
-	return matchResult, err
+	return matchResult, nil
 }
 
 func (p *Pong) Leaderboard(leaderboardName string) (rankings []Player, err error) {

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
@@ -87,7 +88,15 @@ func (s *Server) registerWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listWebhooks(w http.ResponseWriter, r *http.Request) {
+	leaderboardName := chi.URLParam(r, "leaderboard_name")
 
+	webhooks, err := s.pong.ListWebhooks(leaderboardName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(strings.Join(webhooks, "\n")))
 }
 
 func (s *Server) deleteWebhooks(w http.ResponseWriter, r *http.Request) {
