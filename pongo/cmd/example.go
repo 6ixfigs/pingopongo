@@ -24,7 +24,7 @@ var exampleCmd = &cobra.Command{
 
 If you had previously created a leaderboard and registered a webhook to it, you may skip the first 2 commands.
 Also, creating players is unnecessary if they had previously been created.`,
-	Args: cobra.ExactArgs(0),
+	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(cmd.Example)
 	},

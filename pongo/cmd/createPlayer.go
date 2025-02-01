@@ -11,13 +11,12 @@ import (
 
 // createPlayerCmd represents the createPlayer command
 var createPlayerCmd = &cobra.Command{
-	Use:     "create-player",
-	Aliases: []string{"cp"},
+	Use:     "create-player <leaderboard-name> <username>",
+	Aliases: []string{"cp", "new-player"},
 	Short:   "Creates a new player inside a leaderboard.",
 	Long:    `Creates a player with <username> and registers it inside the <leaderboard-name> leaderboard.`,
 	Example: `pongo create-player MyLeaderboard zoran-milanovic
-	pongo cp MyLeaderboard zoran-milanovic
-	`,
+	pongo cp MyLeaderboard zoran-milanovic`,
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {

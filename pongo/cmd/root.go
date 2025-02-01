@@ -11,9 +11,8 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "pongo",
-	Aliases: []string{"pg"},
-	Short:   "Client application for sending request to a ping-pong match tracking server.",
+	Use:   "pongo",
+	Short: "Client application for sending request to a ping-pong match tracking server.",
 	Long: `Pongo is a command-line tool which helps users send data to ping-pong match tracking servers.
 The server parses commands and forwards them to webhooks specified in the command-line.
 	For example:
