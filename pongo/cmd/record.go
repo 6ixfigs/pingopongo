@@ -11,18 +11,13 @@ import (
 
 // recordCmd represents the record command
 var recordCmd = &cobra.Command{
-	Use:   "record",
-	Short: "Records a match between two players.",
-	Long: `Sends the command containing the match recording to server.
-For example:
-
-	record <leaderboard-name> <player1> <player2> <score>`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if err := cobra.ExactArgs(4)(cmd, args); err != nil {
-			return err
-		}
-		return nil
-	},
+	Use:                   "record <leaderboard-name> <player1> <player2> <score>",
+	Aliases:               []string{"r"},
+	Short:                 "Records a match between two players.",
+	Long:                  `Sends the command containing the match recording to server.`,
+	Example:               "pongo record CroPongClub zoran-milanovic dragan-primorac 21-0",
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.ExactArgs(4),
 	Run: func(cmd *cobra.Command, args []string) {
 		sendCommand("record", strings.Join(args, " "))
 	},
