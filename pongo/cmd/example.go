@@ -11,9 +11,10 @@ import (
 
 // exampleCmd represents the example command
 var exampleCmd = &cobra.Command{
-	Use:   "example",
-	Short: "Example usage of the pongo CLI app.",
-	Long: `This is how you would use pongo to record a match between two new players.
+	Use:     "example",
+	Aliases: []string{"e", "ex"},
+	Short:   "Example usage of the pongo CLI app.",
+	Example: `This is how you would use pongo to record a match between two new players.
 
 	pongo create-leaderboard pongers
 	pongo register-webhook https://slack.com/pingypongy_webhook
@@ -23,8 +24,9 @@ var exampleCmd = &cobra.Command{
 
 If you had previously created a leaderboard and registered a webhook to it, you may skip the first 2 commands.
 Also, creating players is unnecessary if they had previously been created.`,
+	Args: cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(cmd.Long)
+		fmt.Println(cmd.Example)
 	},
 }
 

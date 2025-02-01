@@ -11,11 +11,12 @@ import (
 
 // statsCmd represents the stats command
 var statsCmd = &cobra.Command{
-	Use:                   "stats <leaderboard-name> <username>",
-	Aliases:               []string{"s"},
-	Short:                 "Displays user's stats inside the given leaderboard.",
-	Long:                  `Dispays user's games won, win percentage, winning streak and more.`,
-	Example:               `pongo stats MyLeaderboard marcel-muslija`,
+	Use:     "stats <leaderboard-name> <username>",
+	Aliases: []string{"s"},
+	Short:   "Displays user's stats inside the given leaderboard.",
+	Long:    `Dispays user's games won, win percentage, winning streak and more.`,
+	Example: `pongo stats MyLeaderboard marcel-muslija
+	pongo s MyLeaderboard luka-bikota`,
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
