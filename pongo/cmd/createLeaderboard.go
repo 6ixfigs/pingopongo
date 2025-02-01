@@ -11,24 +11,18 @@ import (
 
 // createLeaderboardCmd represents the createLeaderboard command
 var createLeaderboardCmd = &cobra.Command{
-	Use:     "create-leaderboard",
+	Use:     "create-leaderboard <leaderboard-name>",
 	Aliases: []string{"cl"},
 	Short:   "Creates a new leaderboard group for players to join.",
 	Long: `Makes a new group for players to join into. Every leaderboard has it's own
-ranking. Players are allowed to join multiple leaderboards.
-Example usage:
-	pongo create-leaderboard pongers
+ranking. Players can be created inside multiple leaderboards with the same name.`,
 
-Short form:
-	pongo cl pongers`,
 	Example: `pongo create-leaderboard MyLeaderboard
 	pongo cl MyLeaderboard`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if err := cobra.ExactArgs(1)(cmd, args); err != nil {
-			return err
-		}
-		return nil
-	},
+
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
+
 	Run: func(cmd *cobra.Command, args []string) {
 		sendCommand("create-leaderboard", strings.Join(args, ""))
 	},
