@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-const serverURL = "http://localhost:8080/command"
+const serverURL = "http://localhost:8080"
 
 type CommandRequest struct {
 	Command string `json:"command"`
