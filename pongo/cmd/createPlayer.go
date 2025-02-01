@@ -26,5 +26,7 @@ var createPlayerCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(createPlayerCmd)
 
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
 	createPlayerCmd.Flags().BoolP("help", "h", false, "Creates a player inside the specified leaderboard.")
 }
