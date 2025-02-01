@@ -17,14 +17,14 @@ var recordCmd = &cobra.Command{
 For example:
 
 	record <leaderboard-name> <player1> <player2> <score>`,
-	Run: func(cmd *cobra.Command, args []string) {
-		sendCommand("record", strings.Join(args, " "))
-	},
 	Args: func(cmd *cobra.Command, args []string) error {
 		if err := cobra.ExactArgs(4)(cmd, args); err != nil {
 			return err
 		}
 		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		sendCommand("record", strings.Join(args, " "))
 	},
 }
 
