@@ -28,7 +28,7 @@ marc vs vux
 
 **Description:** Display the current leaderboard.
 
-**Command:** `pongo leaderboard`
+**Command:** `pongo leaderboard <leaderboard-name>`
 
 **Response:**
 
