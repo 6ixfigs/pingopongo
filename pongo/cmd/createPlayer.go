@@ -14,7 +14,7 @@ import (
 var createPlayerCmd = &cobra.Command{
 	Use:                   "create-player <leaderboard-name> <username>",
 	Aliases:               []string{"cp", "new-player"},
-	Short:                 "Creates a new player inside a leaderboard.",
+	Short:                 "Creates a new player inside the specified leaderboard.",
 	Long:                  `Creates a player with <username> and registers it inside the <leaderboard-name> leaderboard.`,
 	Example:               "  pongo create-player MyLeaderboard zoran-milanovic\n  pongo cp MyLeaderboard zoran-milanovic",
 	Args:                  cobra.ExactArgs(2),

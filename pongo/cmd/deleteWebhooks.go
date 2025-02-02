@@ -17,8 +17,8 @@ import (
 var deleteWebhooksCmd = &cobra.Command{
 	Use:     "delete-webhooks <leaderboard-name>",
 	Aliases: []string{"dw", "del", "delete"},
-	Short:   "Deletes all webhooks registered to the given leaderboard.",
-	Long: `Deletes all registered webhooks from the given leaderboard.
+	Short:   "Deletes all webhooks registered to the specified leaderboard.",
+	Long: `Deletes all registered webhooks from the specified leaderboard.
 	This action cannot be undone. You will be prompted an 'Are you sure?' before completion.`,
 	Example:               "\tpongo delete-webhooks leaderboard\n\tpongo dw leaderboard",
 	Args:                  cobra.ExactArgs(1),

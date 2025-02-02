@@ -16,7 +16,7 @@ var listWebhooksCmd = &cobra.Command{
 	Aliases:               []string{"lw", "list", "webhooks", "hooks"},
 	DisableFlagsInUseLine: true,
 	Example:               "pongo list-webhooks MyLeaderboard",
-	Short:                 "List all webhooks registered to the given leaderboard.",
+	Short:                 "List all webhooks registered to the specified leaderboard.",
 	Args:                  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := fmt.Sprintf("/leaderboards/%s", args[0])
