@@ -1,37 +1,34 @@
 # PingyPongy
 
-PingyPongy is an application for tracking Ping Pong scores, integrated with Slack.
+PingyPongy is an open-source application for tracking table tennis scores, integrated with any platform (like Slack, Discord, MS Teams).
 
 ## Core Features
 
 ### Match Recording
 
-**Description:** Record a match result by specifying the players and the score in each set.
+**Description:** Record a match result by specifying the players and the final game outcome.
 
-**Command:** `/record <player1> <player2> <game1> [games...]`
+**Command:** `pongo record <leaderboard-name> <player1> <player2> <player1-score> - <player2-score>`
 
 **Example:**
 
 ```
-/record @marc @vukota 11-7 5-11 11-8
+pongo record marc vux 3-1
 ```
 
 **Response:**
 
 ```
 Match recorded successfully:
-@marc vs @vukota
-- Game 1: 11-7
-- Game 2: 5-11
-- Game 3: 11-8
-🎉 Winner: @marc (2-1 in sets)
+marc vs vux
+🎉 Winner: marc (3-1 in sets)
 ```
 
 ### Leaderboard
 
 **Description:** Display the current leaderboard.
 
-**Command:** `/leaderboard`
+**Command:** `pongo leaderboard`
 
 **Response:**
 
@@ -49,20 +46,19 @@ Rank | Player   | Won | Lost | Drawn | Played | Win Ratio
 
 **Description:** View individual player stats like win/loss ratio, matches won/lost, etc.
 
-**Command:** `/stats <player>`
+**Command:** `pongo stats <player>`
 
-**Example:** `/stats @marc`
+**Example:** `pongo stats marc`
 
 **Response:**
 
 ```
-Stats for @marc:
+Stats for marc:
 - Matches Played: 6
 - Matches Won: 5
 - Matches Lost: 1
 - Games Won: 11
 - Games Lost: 5
-- Points Won: 72
 - Win Ratio: 83.33%
 - Current Streak: 4 Wins
 ```
