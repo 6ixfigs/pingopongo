@@ -19,9 +19,9 @@ var statsCmd = &cobra.Command{
 	Example:               "  pongo stats MyLeaderboard marcel-muslija\n  pongo s MyLeaderboard luka-bikota",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		path := fmt.Sprintf("/leaderboards/%s/players/%s", args[0], args[1])
-		sendCommand(path, nil, http.MethodGet)
+		return sendCommand(path, nil, http.MethodGet)
 	},
 }
 
