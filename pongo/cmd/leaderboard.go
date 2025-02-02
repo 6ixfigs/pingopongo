@@ -4,6 +4,9 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/spf13/cobra"
 )
 
@@ -16,8 +19,9 @@ var leaderboardCmd = &cobra.Command{
 	Example:               "  pongo leaderboard pongers\n  pongo l pongers",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		sendCommand("leaderboard", args[0])
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path := fmt.Sprintf("/leaderboard/%s", args[0])
+		return sendCommand(path, nil, http.MethodGet)
 	},
 }
 

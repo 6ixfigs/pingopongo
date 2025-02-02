@@ -4,7 +4,8 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"strings"
+	"fmt"
+	"net/http"
 
 	"github.com/spf13/cobra"
 )
@@ -18,8 +19,10 @@ var createPlayerCmd = &cobra.Command{
 	Example:               "  pongo create-player MyLeaderboard zoran-milanovic\n  pongo cp MyLeaderboard zoran-milanovic",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		sendCommand("create-player", strings.Join(args, " "))
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path := fmt.Sprintf("/leaderboards/%s/players", args[0])
+		formData := map[string]string{"username": args[1]}
+		return sendCommand(path, formData, http.MethodPost)
 	},
 }
 

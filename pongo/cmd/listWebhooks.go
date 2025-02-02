@@ -4,6 +4,9 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/spf13/cobra"
 )
 
@@ -15,8 +18,9 @@ var listWebhooksCmd = &cobra.Command{
 	Example:               "pongo list-webhooks MyLeaderboard",
 	Short:                 "List all webhooks registered to the given leaderboard.",
 	Args:                  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		sendCommand("list-webhooks", args[0])
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path := fmt.Sprintf("/leaderboards/%s", args[0])
+		return sendCommand(path, nil, http.MethodGet)
 	},
 }
 

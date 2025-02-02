@@ -1,41 +1,35 @@
 package cmd
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 const serverURL = "http://localhost:8080"
 
-type CommandRequest struct {
-	Command string `json:"command"`
-	Text    string `json:"text"`
-}
+func sendCommand(path string, formData map[string]string, method string) error {
 
-func sendCommand(command, text string) error {
-	requestData := CommandRequest{
-		Command: command,
-		Text:    text,
+	form := url.Values{}
+	for key, value := range formData {
+		form.Set(key, value)
 	}
 
-	jsonData, err := json.Marshal(requestData)
+	req, err := http.NewRequest(method, serverURL+path, strings.NewReader(form.Encode()))
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(serverURL, "application/json", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	var responseText map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&responseText); err != nil {
-		return err
-	}
-
-	fmt.Println("Server Response:", responseText["text"])
+	fmt.Println("Response form server: ", resp.Status)
 	return nil
 }

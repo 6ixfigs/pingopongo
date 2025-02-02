@@ -6,6 +6,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -22,7 +23,7 @@ var deleteWebhooksCmd = &cobra.Command{
 	Example:               "\tpongo delete-webhooks leaderboard\n\tpongo dw leaderboard",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		leaderboard := args[0]
 
 		fmt.Printf("\n> Are you sure you want to delete all webhook-urls from '%s'? (y/n)\t", leaderboard)
@@ -31,9 +32,11 @@ var deleteWebhooksCmd = &cobra.Command{
 		input = strings.TrimSpace(strings.ToLower(input))
 
 		if input == "y" || input == "yes" {
-			sendCommand("delete-webhooks", leaderboard)
+			path := fmt.Sprintf("/leaderboards/%s/webhooks", args[0])
+			return sendCommand(path, nil, http.MethodDelete)
 		} else {
 			fmt.Println("Delete operation cancelled.")
+			return nil
 		}
 
 	},

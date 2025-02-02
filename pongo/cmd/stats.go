@@ -4,7 +4,8 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"strings"
+	"fmt"
+	"net/http"
 
 	"github.com/spf13/cobra"
 )
@@ -19,7 +20,8 @@ var statsCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		sendCommand("stats", strings.Join(args, " "))
+		path := fmt.Sprintf("/leaderboards/%s/players/%s", args[0], args[1])
+		sendCommand(path, nil, http.MethodGet)
 	},
 }
 
