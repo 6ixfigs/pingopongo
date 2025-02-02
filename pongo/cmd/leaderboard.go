@@ -14,8 +14,8 @@ import (
 var leaderboardCmd = &cobra.Command{
 	Use:                   "leaderboard <leaderboard-name>",
 	Aliases:               []string{"l"},
-	Short:                 "Displays the ranking inside the leaderboard.",
-	Long:                  `Shows the top 15 players and their scores in the specified leaderboard.`,
+	Short:                 "Displays the ranking inside the specified leaderboard.",
+	Long:                  `Shows the top 15 players and their scores in the given leaderboard.`,
 	Example:               "  pongo leaderboard pongers\n  pongo l pongers",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,

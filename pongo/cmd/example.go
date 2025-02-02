@@ -16,7 +16,7 @@ var exampleCmd = &cobra.Command{
 	Short:   "Example usage of the pongo CLI app.",
 	Example: `This is how you would use pongo to record a match between two new players.
 
-	pongo create-leaderboard pongers https://slack.com/pingypongy_webhook
+	pongo create-leaderboard pongers
 	pongo register-webhook https://another_webhook (optional)
 	pongo create-player zoran-primorac
 	pongo create-player mile-kitic
