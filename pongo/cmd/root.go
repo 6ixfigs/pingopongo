@@ -17,7 +17,7 @@ var rootCmd = &cobra.Command{
 The server parses commands and forwards them to webhooks specified in the command-line.
 For example:
 
-	pongo create-leaderboard <leaderboard-name> <webhook-url>
+	pongo create-leaderboard <leaderboard-name>
 	pongo register-webhook <leaderboard-name> <another-url> (optional)
 	pongo create-player <leaderboard-name> <username>
 	pongo record <leaderboard-name> <player1> <player2> <score>`,
