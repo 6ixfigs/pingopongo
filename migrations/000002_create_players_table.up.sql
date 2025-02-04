@@ -10,5 +10,5 @@ CREATE TABLE players (
 	current_streak INTEGER NOT NULL DEFAULT 0,
 	elo INTEGER NOT NULL DEFAULT 0,
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	UNIQUE(leaderboard_id, username)
+	UNIQUE (leaderboard_id, username)
 );
