@@ -109,11 +109,25 @@ func (s *Server) deleteWebhooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(fmt.Sprintf("Deleted all webhooks in %s leaderboard", leaderboardName))
+	w.Write([]byte(fmt.Sprintf("Deleted all webhooks in %s leaderboard", leaderboardName)))
 }
 
 func (s *Server) createPlayer(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	leaderboardName := chi.URLParam(r, "leaderboard_name")
+	username := r.FormValue("username")
+
+	err := s.pong.CreatePlayer(leaderboardName, username)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("Created player %s on leaderboard %s", username, leaderboardName)))
 }
 
 func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
