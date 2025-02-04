@@ -396,7 +396,7 @@ func (p *Pong) Leaderboard(leaderboardName string) (rankings []Player, err error
 	}()
 
 	query := `
-	SELECT FROM leaderboards
+	SELECT id, name FROM leaderboards
 	WHERE name = $1
 	`
 	leaderboard := &Leaderboard{}
