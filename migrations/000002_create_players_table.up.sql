@@ -8,7 +8,7 @@ CREATE TABLE players (
 	total_games_won INTEGER NOT NULL DEFAULT 0,
 	total_games_lost INTEGER NOT NULL DEFAULT 0,
 	current_streak INTEGER NOT NULL DEFAULT 0,
-	elo INTEGER NOT NULL DEFAULT 0,
+	elo INTEGER NOT NULL DEFAULT 1000,
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	UNIQUE (leaderboard_id, username)
 );
