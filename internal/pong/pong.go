@@ -463,7 +463,7 @@ func (p *Pong) Stats(leaderboardName, username string) (player *Player, err erro
 	}()
 
 	query := `
-	SELECT FROM leaderboards
+	SELECT id, name FROM leaderboards
 	WHERE name = $1
 	`
 	leaderboard := &Leaderboard{}
