@@ -212,6 +212,7 @@ func init() {
 	listWebhooksCmd.Flags().BoolP("help", "h", false, "List all webhooks from the specified leaderboard.")
 
 	rootCmd.AddCommand(statsCmd)
+	statsCmd.Flags().BoolP("help", "h", false, "Shows stats for the specified player.")
 }
 
 const serverURL = "http://localhost:8080"

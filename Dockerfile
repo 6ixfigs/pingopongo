@@ -8,15 +8,15 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-RUN go build -v -o pingypongy cmd/pingypongy.go
+RUN go build -v -o pingo cmd/server/pingo.go
 
 FROM alpine:3.20 AS runtime
 
 WORKDIR /opt
 
 COPY --from=build /opt/.env .env
-COPY --from=build /opt/pingypongy pingypongy
+COPY --from=build /opt/pingo pingo
 
 EXPOSE 8080
 
-CMD ["./pingypongy"]
+CMD ["./pingo"]
