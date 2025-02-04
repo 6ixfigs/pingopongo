@@ -129,6 +129,42 @@ func (p *Pong) ListWebhooks(leaderboardName string) (webhooks []string, err erro
 	return webhooks, nil
 }
 
+func (p *Pong) deleteWebhooks(leaderboardName string) (err error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			err = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	query := `
+	SELECT id, name FROM leaderboards
+	WHERE name = $1	
+	`
+
+	leaderboard := &Leaderboard{}
+	err = tx.QueryRow(query, leaderboardName).Scan(
+		&leaderboard.ID,
+		&leaderboard.Name,
+	)
+	if err != nil {
+		return err
+	}
+
+	query = `
+	DELETE FROM webhooks
+	WHERE leaderboard_id = $1
+	`
+	_, err = tx.Exec(query, leaderboard.ID)
+
+	return err
+}
+
 func (p *Pong) Record(leaderboardName, username1, username2, score string) (matchResult *MatchResult, err error) {
 	matchScore, err := parseScore(score)
 	if err != nil {

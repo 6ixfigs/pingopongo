@@ -82,6 +82,7 @@ func (s *Server) registerWebhook(w http.ResponseWriter, r *http.Request) {
 	err := s.pong.RegisterWebhook(leaderboardName, url)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Write([]byte(fmt.Sprintf("Registered webhook %s on leaderboard %s", url, leaderboardName)))
@@ -100,7 +101,15 @@ func (s *Server) listWebhooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteWebhooks(w http.ResponseWriter, r *http.Request) {
+	leaderboardName := chi.URLParam(r, "leaderboard_name")
 
+	err := s.pong.DeleteWebhooks(leaderboardName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("Deleted all webhooks in %s leaderboard", leaderboardName))
 }
 
 func (s *Server) createPlayer(w http.ResponseWriter, r *http.Request) {
