@@ -47,7 +47,7 @@ func (s *Server) MountRoutes() {
 	s.Router.Get("/leaderboards/{leaderboard_name}/webhooks", s.registerWebhook)
 	s.Router.Delete("/leaderboards/{leaderboard_name}/webhooks", s.deleteWebhooks)
 
-	s.Router.Post("/leaderbaords/{leaderboard_name}/players", s.createPlayer)
+	s.Router.Post("/leaderboards/{leaderboard_name}/players", s.createPlayer)
 	s.Router.Get("/leaderboards/{leaderboard_name}/players/{username}", s.getPlayerStats)
 
 	s.Router.Post("/leaderboards/{leaderboard_name}/matches", s.recordMatch)
