@@ -173,6 +173,7 @@ func (s *Server) getPlayerStats(w http.ResponseWriter, r *http.Request) {
 	player, err := s.pong.Stats(leaderboardName, username)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	response := formatStats(player)
