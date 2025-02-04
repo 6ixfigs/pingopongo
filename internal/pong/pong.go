@@ -477,9 +477,10 @@ func (p *Pong) Stats(leaderboardName, username string) (player *Player, err erro
 
 	query = `
 	SELECT * FROM players
-	WHERE 	leaderboard_id = $1 AND username = $2
+	WHERE leaderboard_id = $1 AND username = $2
 	`
 
+	player = &Player{}
 	err = p.db.QueryRow(query, leaderboard.ID, username).Scan(
 		&player.ID,
 		&player.LeaderboardID,
@@ -498,7 +499,6 @@ func (p *Pong) Stats(leaderboardName, username string) (player *Player, err erro
 	}
 
 	return player, nil
-
 }
 
 func (p *Pong) updateElo(winner, loser *Player, isDraw bool) {

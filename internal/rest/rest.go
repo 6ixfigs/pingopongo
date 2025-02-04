@@ -206,6 +206,10 @@ func formatStats(player *pong.Player) string {
 	`
 
 	matchesPlayed := player.MatchesWon + player.MatchesLost + player.MatchesDrawn
+	winRatio := 0.
+	if matchesPlayed > 0 {
+		winRatio = float64(player.MatchesWon) / float64(matchesPlayed) * 100
+	}
 	return fmt.Sprintf(
 		r,
 		player.Username,
@@ -215,7 +219,7 @@ func formatStats(player *pong.Player) string {
 		player.MatchesDrawn,
 		player.TotalGamesWon,
 		player.TotalGamesLost,
-		float64(player.MatchesWon)/float64(matchesPlayed)*100,
+		winRatio,
 		player.CurrentStreak,
 		player.Elo,
 	)
@@ -226,6 +230,10 @@ func formatLeaderboard(leaderboardName string, leaderboard []pong.Player) string
 	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio", "Elo"})
 	for rank, player := range leaderboard {
 		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
+		winRatio := 0.
+		if matchesPlayed > 0 {
+			winRatio = float64(player.MatchesWon) / float64(matchesPlayed) * 100
+		}
 		t.AppendRow(table.Row{
 			rank + 1,
 			player.Username,
@@ -233,7 +241,7 @@ func formatLeaderboard(leaderboardName string, leaderboard []pong.Player) string
 			player.MatchesDrawn,
 			player.MatchesLost,
 			matchesPlayed,
-			fmt.Sprintf("%.2f", float64(player.MatchesWon)/float64(matchesPlayed)*100),
+			fmt.Sprintf("%.2f%%", winRatio),
 			player.Elo,
 		})
 	}
