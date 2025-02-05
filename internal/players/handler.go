@@ -172,7 +172,7 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 		player.Elo,
 	})
 
-	response := fmt.Sprintf("%s's Stats:\n```\n%s\n```\n", l.Name, t.Render())
+	response := fmt.Sprintf("%s's Stats:\n```\n%s\n```\n", player.Username, t.Render())
 
 	urls, err := webhooks.All(h.db, name)
 	if err == nil {
