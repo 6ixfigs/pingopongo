@@ -16,43 +16,6 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db: db}
 }
 
-func (p *Pong) CreatePlayer(leaderboardName, username string) (err error) {
-	tx, err := p.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			err = tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
-
-	query := `
-	SELECT id, name FROM leaderboards
-	WHERE name = $1	
-	`
-
-	leaderboard := &Leaderboard{}
-	err = tx.QueryRow(query, leaderboardName).Scan(
-		&leaderboard.ID,
-		&leaderboard.Name,
-	)
-	if err != nil {
-		return err
-	}
-
-	query = `
-	INSERT INTO players (leaderboard_id, username)
-	VALUES ($1, $2)
-	`
-
-	_, err = tx.Exec(query, leaderboard.ID, username)
-
-	return err
-}
-
 func (p *Pong) Record(leaderboardName, username1, username2, score string) (matchResult *MatchResult, err error) {
 	matchScore, err := parseScore(score)
 	if err != nil {
@@ -226,63 +189,6 @@ func (p *Pong) Record(leaderboardName, username1, username2, score string) (matc
 		matchScore,
 	}
 	return matchResult, nil
-}
-
-func (p *Pong) Stats(leaderboardName, username string) (player *Player, err error) {
-	tx, err := p.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			if err = tx.Rollback(); err != nil {
-				player = nil
-			}
-		} else {
-			if err = tx.Commit(); err != nil {
-				player = nil
-			}
-		}
-	}()
-
-	query := `
-	SELECT id, name FROM leaderboards
-	WHERE name = $1
-	`
-	leaderboard := &Leaderboard{}
-	err = tx.QueryRow(query, leaderboardName).Scan(
-		&leaderboard.ID,
-		&leaderboard.Name,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	query = `
-	SELECT * FROM players
-	WHERE leaderboard_id = $1 AND username = $2
-	`
-
-	player = &Player{}
-	err = p.db.QueryRow(query, leaderboard.ID, username).Scan(
-		&player.ID,
-		&player.LeaderboardID,
-		&player.Username,
-		&player.MatchesWon,
-		&player.MatchesDrawn,
-		&player.MatchesLost,
-		&player.TotalGamesWon,
-		&player.TotalGamesLost,
-		&player.CurrentStreak,
-		&player.Elo,
-		&player.CreatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return player, nil
 }
 
 func (p *Pong) updateElo(winner, loser *Player, isDraw bool) {
