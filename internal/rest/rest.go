@@ -8,15 +8,13 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/leaderboards"
 	"github.com/6ixfigs/pingypongy/internal/matches"
 	"github.com/6ixfigs/pingypongy/internal/players"
-	"github.com/6ixfigs/pingypongy/internal/pong"
 	"github.com/6ixfigs/pingypongy/internal/webhooks"
 	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
-	Rtr  chi.Mux
-	db   *sql.DB
-	pong *pong.Pong
+	Rtr chi.Mux
+	db  *sql.DB
 }
 
 func NewServer() (*Server, error) {
@@ -31,9 +29,8 @@ func NewServer() (*Server, error) {
 	}
 
 	return &Server{
-		Rtr:  *chi.NewMux(),
-		db:   db,
-		pong: pong.New(db),
+		Rtr: *chi.NewMux(),
+		db:  db,
 	}, nil
 }
 
