@@ -87,63 +87,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "leaderboard_name")
 
-	tx, err := h.db.Begin()
+	webhooks, err := All(h.db, name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer func() {
-		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-
-		err = tx.Commit()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}()
-
-	query := `
-	SELECT id, name FROM leaderboards
-	WHERE name = $1
-	`
-
-	l := &models.Leaderboard{}
-	err = tx.QueryRow(query, name).Scan(
-		&l.ID,
-		&l.Name,
-	)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	query = `
-	SELECT url FROM webhooks
-	WHERE leaderboard_id = $1
-	`
-
-	rows, err := tx.Query(query, l.ID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var webhooks []string
-	for rows.Next() {
-		var url string
-		if err := rows.Scan(&url); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		webhooks = append(webhooks, url)
-	}
-
-	if err := rows.Err(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -215,4 +160,58 @@ func Notify(webhooks []string, message string) {
 
 		http.DefaultClient.Do(req)
 	}
+}
+
+func All(db *sql.DB, leaderboard string) ([]string, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	query := `
+	SELECT id, name FROM leaderboards
+	WHERE name = $1
+	`
+
+	l := &models.Leaderboard{}
+	err = tx.QueryRow(query, leaderboard).Scan(
+		&l.ID,
+		&l.Name,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	query = `
+	SELECT url FROM webhooks
+	WHERE leaderboard_id = $1
+	`
+
+	rows, err := tx.Query(query, l.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var webhooks []string
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		webhooks = append(webhooks, url)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return webhooks, nil
 }

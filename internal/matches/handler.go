@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/6ixfigs/pingypongy/internal/models"
+	"github.com/6ixfigs/pingypongy/internal/webhooks"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -229,6 +230,11 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		result.P2.Username,
 		result.P2EloDiff,
 	)
+
+	urls, err := webhooks.All(h.db, name)
+	if err == nil {
+		webhooks.Notify(urls, response)
+	}
 
 	w.Write([]byte(response))
 }
