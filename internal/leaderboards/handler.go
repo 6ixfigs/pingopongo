@@ -65,7 +65,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := fmt.Sprintf("Created leaderboard: %s !", name)
+	response := fmt.Sprintf("Created leaderboard: %s !\n", name)
 
 	w.Write([]byte(response))
 }
@@ -161,7 +161,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	response := fmt.Sprintf("Leaderboard %s:\n```\n%s\n```", l.Name, t.Render())
+	response := fmt.Sprintf("Leaderboard %s:\n```\n%s\n```\n", l.Name, t.Render())
 
 	w.Write([]byte(response))
 }

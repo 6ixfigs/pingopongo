@@ -81,7 +81,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := fmt.Sprintf("Created plyer on leaderboard %s: %s", name, username)
+	response := fmt.Sprintf("Created plyer on leaderboard %s: %s\n", name, username)
 
 	w.Write([]byte(response))
 }
@@ -166,7 +166,7 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 		player.Elo,
 	})
 
-	response := fmt.Sprintf("%s's Stats:\n```\n%s\n```", l.Name, t.Render())
+	response := fmt.Sprintf("%s's Stats:\n```\n%s\n```\n", l.Name, t.Render())
 
 	w.Write([]byte(response))
 }

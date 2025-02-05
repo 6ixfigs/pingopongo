@@ -79,7 +79,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := fmt.Sprintf("Registered new webhook on leaderboard %s: %s", name, url)
+	response := fmt.Sprintf("Registered new webhook on leaderboard %s: %s\n", name, url)
 
 	w.Write([]byte(response))
 }
@@ -148,7 +148,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := strings.Join(webhooks, "\n")
+	response := strings.Join(webhooks, "\n") + "\n"
 
 	w.Write([]byte(response))
 }
@@ -200,7 +200,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := fmt.Sprintf("Delete all webhooks on leaderboard: %s", name)
+	response := fmt.Sprintf("Delete all webhooks on leaderboard: %s\n", name)
 
 	w.Write([]byte(response))
 }
