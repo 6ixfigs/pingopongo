@@ -1,4 +1,10 @@
-package pong
+package models
+
+type Leaderboard struct {
+	ID        int
+	Name      string
+	CreatedAt string
+}
 
 type Player struct {
 	ID             int
@@ -12,12 +18,6 @@ type Player struct {
 	CurrentStreak  int
 	Elo            int
 	CreatedAt      string
-}
-
-type Leaderboard struct {
-	ID        int
-	Name      string
-	CreatedAt string
 }
 
 type MatchScore struct {

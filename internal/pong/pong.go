@@ -16,28 +16,6 @@ func New(db *sql.DB) *Pong {
 	return &Pong{db: db}
 }
 
-func (p *Pong) CreateLeaderboard(leaderboardName string) (err error) {
-	tx, err := p.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			err = tx.Rollback()
-		} else {
-			err = tx.Commit()
-		}
-	}()
-
-	query := `
-	INSERT INTO leaderboards (name) 
-	VALUES ($1)
-	`
-	_, err = tx.Exec(query, leaderboardName)
-
-	return err
-}
-
 func (p *Pong) RegisterWebhook(leaderboardName, url string) (err error) {
 	tx, err := p.db.Begin()
 	if err != nil {
@@ -375,73 +353,6 @@ func (p *Pong) Record(leaderboardName, username1, username2, score string) (matc
 		matchScore,
 	}
 	return matchResult, nil
-}
-
-func (p *Pong) Leaderboard(leaderboardName string) (rankings []Player, err error) {
-	tx, err := p.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			if err = tx.Rollback(); err != nil {
-				rankings = nil
-			}
-		} else {
-			if err = tx.Commit(); err != nil {
-				rankings = nil
-			}
-		}
-	}()
-
-	query := `
-	SELECT id, name FROM leaderboards
-	WHERE name = $1
-	`
-	leaderboard := &Leaderboard{}
-	err = tx.QueryRow(query, leaderboardName).Scan(
-		&leaderboard.ID,
-		&leaderboard.Name,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	query = `
-		SELECT username, matches_won, matches_drawn, matches_lost, elo
-		FROM players
-		WHERE leaderboard_id = $1
-		ORDER BY elo DESC
-	`
-
-	rows, err := p.db.Query(query, leaderboard.ID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var player Player
-		err = rows.Scan(
-			&player.Username,
-			&player.MatchesWon,
-			&player.MatchesDrawn,
-			&player.MatchesLost,
-			&player.Elo,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		rankings = append(rankings, player)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return rankings, nil
 }
 
 func (p *Pong) Stats(leaderboardName, username string) (player *Player, err error) {

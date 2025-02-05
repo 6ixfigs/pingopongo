@@ -9,9 +9,9 @@ import (
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
+	"github.com/6ixfigs/pingypongy/internal/leaderboard"
 	"github.com/6ixfigs/pingypongy/internal/pong"
 	"github.com/go-chi/chi/v5"
-	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 type Server struct {
@@ -41,8 +41,10 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/leaderboards", s.createLeaderboard)
-	s.Router.Get("/leaderboards/{leaderboard_name}", s.getLeaderboard)
+	lh := leaderboard.NewHandler(s.db)
+	lh.MountRoutes()
+
+	s.Router.Mount("/leaderboards", lh.Rtr)
 
 	s.Router.Post("/leaderboards/{leaderboard_name}/webhooks", s.registerWebhook)
 	s.Router.Get("/leaderboards/{leaderboard_name}/webhooks", s.listWebhooks)
@@ -52,23 +54,6 @@ func (s *Server) MountRoutes() {
 	s.Router.Get("/leaderboards/{leaderboard_name}/players/{username}", s.getPlayerStats)
 
 	s.Router.Post("/leaderboards/{leaderboard_name}/matches", s.recordMatch)
-}
-
-func (s *Server) createLeaderboard(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	leaderboardName := r.FormValue("name")
-
-	err := s.pong.CreateLeaderboard(leaderboardName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte(fmt.Sprintf("Leaderboard %s created!", leaderboardName)))
 }
 
 func (s *Server) registerWebhook(w http.ResponseWriter, r *http.Request) {
@@ -167,26 +152,6 @@ func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(response))
 }
 
-func (s *Server) getLeaderboard(w http.ResponseWriter, r *http.Request) {
-	leaderboardName := chi.URLParam(r, "leaderboard_name")
-
-	rankings, err := s.pong.Leaderboard(leaderboardName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	response := formatLeaderboard(leaderboardName, rankings)
-
-	_, err = s.notifyWebhooks(leaderboardName, response)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte(response))
-}
-
 func (s *Server) getPlayerStats(w http.ResponseWriter, r *http.Request) {
 	leaderboardName := chi.URLParam(r, "leaderboard_name")
 	username := chi.URLParam(r, "username")
@@ -250,31 +215,6 @@ func formatStats(player *pong.Player) string {
 		player.CurrentStreak,
 		player.Elo,
 	)
-}
-
-func formatLeaderboard(leaderboardName string, leaderboard []pong.Player) string {
-	t := table.NewWriter()
-	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio", "Elo"})
-	for rank, player := range leaderboard {
-		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
-		winRatio := 0.
-		if matchesPlayed > 0 {
-			winRatio = float64(player.MatchesWon) / float64(matchesPlayed) * 100
-		}
-		t.AppendRow(table.Row{
-			rank + 1,
-			player.Username,
-			player.MatchesWon,
-			player.MatchesDrawn,
-			player.MatchesLost,
-			matchesPlayed,
-			fmt.Sprintf("%.2f%%", winRatio),
-			player.Elo,
-		})
-	}
-	text := fmt.Sprintf("%s leaderboard:\n```\n%s\n```", leaderboardName, t.Render())
-
-	return text
 }
 
 func (s *Server) notifyWebhooks(leaderboardName, text string) ([]string, error) {
