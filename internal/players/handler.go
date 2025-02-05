@@ -71,7 +71,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query = `
-	INSERT INTO players
+	INSERT INTO players (leaderboard_id, username)
 	VALUES ($1, $2)
 	`
 
