@@ -13,7 +13,8 @@ import (
 )
 
 type Server struct {
-	Rtr chi.Mux
+	Rtr *chi.Mux
+	Cfg *config.Config
 	db  *sql.DB
 }
 
@@ -29,7 +30,8 @@ func NewServer() (*Server, error) {
 	}
 
 	return &Server{
-		Rtr: *chi.NewMux(),
+		Rtr: chi.NewRouter(),
+		Cfg: cfg,
 		db:  db,
 	}, nil
 }
