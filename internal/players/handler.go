@@ -161,7 +161,7 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 		player.MatchesDrawn,
 		player.TotalGamesWon,
 		player.TotalGamesLost,
-		winRatio,
+		fmt.Sprintf("%.2f%%", winRatio),
 		player.CurrentStreak,
 		player.Elo,
 	})
