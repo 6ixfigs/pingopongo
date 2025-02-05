@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -127,7 +128,15 @@ func (s *Server) createPlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(fmt.Sprintf("Created player %s on leaderboard %s", username, leaderboardName)))
+	response := fmt.Sprintf("Created player %s on leaderboard %s", username, leaderboardName)
+
+	_, err = s.notifyWebhooks(leaderboardName, response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(response))
 }
 
 func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
@@ -149,6 +158,12 @@ func (s *Server) recordMatch(w http.ResponseWriter, r *http.Request) {
 
 	response := formatMatchResult(result)
 
+	_, err = s.notifyWebhooks(leaderboardName, response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.Write([]byte(response))
 }
 
@@ -162,6 +177,12 @@ func (s *Server) getLeaderboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := formatLeaderboard(leaderboardName, rankings)
+
+	_, err = s.notifyWebhooks(leaderboardName, response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Write([]byte(response))
 }
@@ -177,6 +198,12 @@ func (s *Server) getPlayerStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := formatStats(player)
+
+	_, err = s.notifyWebhooks(leaderboardName, response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Write([]byte(response))
 }
@@ -245,7 +272,32 @@ func formatLeaderboard(leaderboardName string, leaderboard []pong.Player) string
 			player.Elo,
 		})
 	}
-	text := fmt.Sprintf("%s leaderboard:\n%s", leaderboardName, t.Render())
+	text := fmt.Sprintf("%s leaderboard:\n```\n%s\n```", leaderboardName, t.Render())
 
 	return text
+}
+
+func (s *Server) notifyWebhooks(leaderboardName, text string) ([]string, error) {
+	webhooks, err := s.pong.ListWebhooks(leaderboardName)
+	if err != nil {
+		return nil, err
+	}
+
+	var failed []string
+	payload := []byte(fmt.Sprintf(`{"text": "%s"}`, text))
+	for _, webhook := range webhooks {
+		req, err := http.NewRequest(http.MethodPost, webhook, bytes.NewBuffer(payload))
+		if err != nil {
+			failed = append(failed, webhook)
+			continue
+		}
+
+		_, err = http.DefaultClient.Do(req)
+		if err != nil {
+			failed = append(failed, webhook)
+			continue
+		}
+	}
+
+	return failed, nil
 }
