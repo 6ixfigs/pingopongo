@@ -11,6 +11,7 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/db"
 	"github.com/6ixfigs/pingypongy/internal/leaderboard"
 	"github.com/6ixfigs/pingypongy/internal/pong"
+	"github.com/6ixfigs/pingypongy/internal/webhooks"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -44,58 +45,16 @@ func (s *Server) MountRoutes() {
 	lh := leaderboard.NewHandler(s.db)
 	lh.MountRoutes()
 
-	s.Router.Mount("/leaderboards", lh.Rtr)
+	wh := webhooks.NewHandler(s.db)
+	wh.MountRoutes()
 
-	s.Router.Post("/leaderboards/{leaderboard_name}/webhooks", s.registerWebhook)
-	s.Router.Get("/leaderboards/{leaderboard_name}/webhooks", s.listWebhooks)
-	s.Router.Delete("/leaderboards/{leaderboard_name}/webhooks", s.deleteWebhooks)
+	s.Router.Mount("/leaderboards", lh.Rtr)
+	s.Router.Mount("/leaderboards/{leaderboard_name}/webhooks", wh.Rtr)
 
 	s.Router.Post("/leaderboards/{leaderboard_name}/players", s.createPlayer)
 	s.Router.Get("/leaderboards/{leaderboard_name}/players/{username}", s.getPlayerStats)
 
 	s.Router.Post("/leaderboards/{leaderboard_name}/matches", s.recordMatch)
-}
-
-func (s *Server) registerWebhook(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	leaderboardName := chi.URLParam(r, "leaderboard_name")
-	url := r.FormValue("url")
-
-	err := s.pong.RegisterWebhook(leaderboardName, url)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte(fmt.Sprintf("Registered webhook %s on leaderboard %s", url, leaderboardName)))
-}
-
-func (s *Server) listWebhooks(w http.ResponseWriter, r *http.Request) {
-	leaderboardName := chi.URLParam(r, "leaderboard_name")
-
-	webhooks, err := s.pong.ListWebhooks(leaderboardName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte(strings.Join(webhooks, "\n")))
-}
-
-func (s *Server) deleteWebhooks(w http.ResponseWriter, r *http.Request) {
-	leaderboardName := chi.URLParam(r, "leaderboard_name")
-
-	err := s.pong.DeleteWebhooks(leaderboardName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Write([]byte(fmt.Sprintf("Deleted all webhooks in %s leaderboard", leaderboardName)))
 }
 
 func (s *Server) createPlayer(w http.ResponseWriter, r *http.Request) {
@@ -215,29 +174,4 @@ func formatStats(player *pong.Player) string {
 		player.CurrentStreak,
 		player.Elo,
 	)
-}
-
-func (s *Server) notifyWebhooks(leaderboardName, text string) ([]string, error) {
-	webhooks, err := s.pong.ListWebhooks(leaderboardName)
-	if err != nil {
-		return nil, err
-	}
-
-	var failed []string
-	payload := []byte(fmt.Sprintf(`{"text": "%s"}`, text))
-	for _, webhook := range webhooks {
-		req, err := http.NewRequest(http.MethodPost, webhook, bytes.NewBuffer(payload))
-		if err != nil {
-			failed = append(failed, webhook)
-			continue
-		}
-
-		_, err = http.DefaultClient.Do(req)
-		if err != nil {
-			failed = append(failed, webhook)
-			continue
-		}
-	}
-
-	return failed, nil
 }

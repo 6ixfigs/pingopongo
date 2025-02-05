@@ -23,11 +23,11 @@ func NewHandler(db *sql.DB) *Handler {
 }
 
 func (h *Handler) MountRoutes() {
-	h.Rtr.Post("/", h.CreateLeaderboard)
-	h.Rtr.Get("/{leaderboard_name}", h.GetLeaderboard)
+	h.Rtr.Post("/", h.Create)
+	h.Rtr.Get("/{leaderboard_name}", h.Get)
 }
 
-func (h *Handler) CreateLeaderboard(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -70,7 +70,7 @@ func (h *Handler) CreateLeaderboard(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(response))
 }
 
-func (h *Handler) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "leaderboard_name")
 
 	tx, err := h.db.Begin()
