@@ -221,7 +221,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		Score:     matchScore,
 	}
 
-	response := fmt.Sprintf("Match recorder: (%+d) %s %d - %d %s (%+d) !\n",
+	response := fmt.Sprintf("Match recorded: (%+d) %s %d - %d %s (%+d) !\n",
 		result.P1EloDiff,
 		result.P1.Username,
 		result.Score.P1,
