@@ -1,4 +1,4 @@
-package leaderboard
+package leaderboards
 
 import (
 	"database/sql"
