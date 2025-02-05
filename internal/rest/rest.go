@@ -10,6 +10,7 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/players"
 	"github.com/6ixfigs/pingypongy/internal/webhooks"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
@@ -37,6 +38,12 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) MountRoutes() {
+	s.Rtr.Use(middleware.Recoverer)
+	s.Rtr.Use(middleware.CleanPath)
+	s.Rtr.Use(middleware.RedirectSlashes)
+	s.Rtr.Use(middleware.AllowContentType("application/x-www-form-urlencoded"))
+	s.Rtr.Use(middleware.Heartbeat("/ping"))
+
 	lh := leaderboards.NewHandler(s.db)
 	lh.MountRoutes()
 
