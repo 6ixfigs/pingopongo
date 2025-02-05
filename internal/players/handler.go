@@ -82,7 +82,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := fmt.Sprintf("Created plyer on leaderboard %s: %s\n", name, username)
+	response := fmt.Sprintf("Created player on leaderboard %s: %s\n", name, username)
 
 	urls, err := webhooks.All(h.db, name)
 	if err == nil {
