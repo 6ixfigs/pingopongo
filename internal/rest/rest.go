@@ -1,22 +1,22 @@
 package rest
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
+	"database/sql"
 
 	"github.com/6ixfigs/pingypongy/internal/config"
 	"github.com/6ixfigs/pingypongy/internal/db"
-	"github.com/6ixfigs/pingypongy/internal/pong"
-	"github.com/6ixfigs/pingypongy/internal/slack"
+	"github.com/6ixfigs/pingypongy/internal/leaderboards"
+	"github.com/6ixfigs/pingypongy/internal/matches"
+	"github.com/6ixfigs/pingypongy/internal/players"
+	"github.com/6ixfigs/pingypongy/internal/webhooks"
 	"github.com/go-chi/chi/v5"
-	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	Router chi.Router
-	Config *config.Config
-	pong   *pong.Pong
+	Rtr *chi.Mux
+	Cfg *config.Config
+	db  *sql.DB
 }
 
 func NewServer() (*Server, error) {
@@ -31,182 +31,33 @@ func NewServer() (*Server, error) {
 	}
 
 	return &Server{
-		Router: chi.NewRouter(),
-		Config: cfg,
-		pong:   pong.New(db),
+		Rtr: chi.NewRouter(),
+		Cfg: cfg,
+		db:  db,
 	}, nil
 }
 
 func (s *Server) MountRoutes() {
-	s.Router.Post("/command", s.command)
-	s.Router.Post("/event", s.event)
-}
+	s.Rtr.Use(middleware.Recoverer)
+	s.Rtr.Use(middleware.CleanPath)
+	s.Rtr.Use(middleware.RedirectSlashes)
+	s.Rtr.Use(middleware.AllowContentType("application/x-www-form-urlencoded"))
+	s.Rtr.Use(middleware.Heartbeat("/ping"))
 
-func (s *Server) command(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	lh := leaderboards.NewHandler(s.db)
+	lh.MountRoutes()
 
-	request := &slack.CommandRequest{
-		TeamID:         r.FormValue("team_id"),
-		TeamDomain:     r.FormValue("team_domain"),
-		EnterpriseID:   r.FormValue("enterprise_id"),
-		EnterpriseName: r.FormValue("enterprise_name"),
-		ChannelID:      r.FormValue("channel_id"),
-		ChannelName:    r.FormValue("channel_name"),
-		UserID:         r.FormValue("user_id"),
-		Command:        r.FormValue("command"),
-		Text:           r.FormValue("text"),
-		ResponseUrl:    r.FormValue("response_url"),
-		TriggerID:      r.FormValue("trigger_id"),
-		ApiAppID:       r.FormValue("api_app_id"),
-	}
+	wh := webhooks.NewHandler(s.db)
+	wh.MountRoutes()
 
-	var err error
-	var responseText string
+	ph := players.NewHandler(s.db)
+	ph.MountRoutes()
 
-	switch request.Command {
-	case "/record":
-		result, err := s.pong.Record(request.ChannelID, request.TeamID, request.Text)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-		responseText = formatMatchResult(result)
+	mh := matches.NewHandler(s.db)
+	mh.MountRoutes()
 
-	case "/stats":
-		player, err := s.pong.Stats(request.ChannelID, request.TeamID, request.Text)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-		responseText = formatStats(player)
-
-	case "/leaderboard":
-		leaderboard, err := s.pong.Leaderboard(request.ChannelID)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-		responseText = formatLeaderboard(leaderboard)
-
-	default:
-		http.Error(w, "Unsupported command", http.StatusBadRequest)
-		return
-	}
-
-	response, err := json.Marshal(&slack.CommandResponse{ResponseType: "in_channel", Text: responseText})
-	if err != nil {
-		fmt.Printf("err: %v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(response)
-}
-
-func (s *Server) event(w http.ResponseWriter, r *http.Request) {
-	var request slack.EventRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		fmt.Printf("err: %v\n", err)
-		return
-	}
-
-	if request.Type == "url_verification" {
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(request.Challenge))
-		return
-	}
-
-	innerEvent := request.Event
-	var err error
-
-	switch innerEvent["type"] {
-	case "channel_id_changed":
-		err = s.pong.UpdateChannelID(innerEvent["old_channel_id"], innerEvent["new_channel_id"])
-	default:
-		err = fmt.Errorf("unrecognized event")
-	}
-
-	fmt.Printf("err: %v\n", err)
-}
-
-func formatMatchResult(result *pong.MatchResult) string {
-	players := fmt.Sprintf("<@%s> vs <@%s>", result.P1.UserID, result.P2.UserID)
-
-	var gameResults string
-	for i, g := range result.Games {
-		gameResults += fmt.Sprintf("- Game %d: %d-%d\n", i+1, g.P1PointsWon, g.P2PointsWon)
-	}
-
-	var conclusion string
-	if result.IsDraw {
-		conclusion = "Draw!"
-	} else {
-		conclusion = fmt.Sprintf(":trophy: Winner: <@%s> %d-%d",
-			result.Winner.UserID,
-			result.P1GamesWon,
-			result.P2GamesWon,
-		)
-	}
-
-	response := fmt.Sprintf("Match recorded:\n%s\n%s\n%s", players, gameResults, conclusion)
-	return response
-}
-
-func formatStats(player *pong.Player) string {
-	r := `Stats for <@%s>:
-	- Matches played: %d
-	- Matches won: %d
-	- Matches lost: %d
-	- Matches drawn: %d
-	- Games won: %d
-	- Games lost: %d
-	- Points won: %d
-	- Win ratio: %.2f%%
-	- Current streak: %d
-	- Elo: %d
-	`
-
-	matchesPlayed := player.MatchesWon + player.MatchesLost + player.MatchesDrawn
-	return fmt.Sprintf(
-		r,
-		player.UserID,
-		matchesPlayed,
-		player.MatchesWon,
-		player.MatchesLost,
-		player.MatchesDrawn,
-		player.TotalGamesWon,
-		player.TotalGamesLost,
-		player.TotalPointsWon,
-		float64(player.MatchesWon)/float64(matchesPlayed)*100,
-		player.CurrentStreak,
-		player.Elo,
-	)
-}
-
-func formatLeaderboard(leaderboard []pong.Player) string {
-	t := table.NewWriter()
-	t.AppendHeader(table.Row{"#", "player", "W", "D", "L", "P", "Win Ratio", "Elo"})
-	for rank, player := range leaderboard {
-		matchesPlayed := player.MatchesWon + player.MatchesDrawn + player.MatchesLost
-		t.AppendRow(table.Row{
-			rank + 1,
-			player.FullName,
-			player.MatchesWon,
-			player.MatchesDrawn,
-			player.MatchesLost,
-			matchesPlayed,
-			fmt.Sprintf("%.2f", float64(player.MatchesWon)/float64(matchesPlayed)*100),
-			player.Elo,
-		})
-	}
-	text := fmt.Sprintf(":table_tennis_paddle_and_ball: *Current Leaderboard*:\n```%s```", t.Render())
-
-	return text
+	s.Rtr.Mount("/leaderboards", lh.Rtr)
+	s.Rtr.Mount("/leaderboards/{leaderboard_name}/webhooks", wh.Rtr)
+	s.Rtr.Mount("/leaderboards/{leaderboard_name}/players", ph.Rtr)
+	s.Rtr.Mount("/leaderboards/{leaderboard_name}/matches", mh.Rtr)
 }
