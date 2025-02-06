@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -215,14 +216,19 @@ func init() {
 	statsCmd.Flags().BoolP("help", "h", false, "Shows stats for the specified player.")
 }
 
-const serverURL = "http://localhost:8080"
-
 func sendCommand(path string, formData map[string]string, method string) error {
 
 	form := url.Values{}
 	for key, value := range formData {
 		form.Set(key, value)
 	}
+
+	serverURL, err := getServerURL()
+	if err != nil {
+		return err
+	}
+
+	print("Server url: ", serverURL)
 
 	req, err := http.NewRequest(method, serverURL+path, strings.NewReader(form.Encode()))
 	if err != nil {
@@ -240,6 +246,35 @@ func sendCommand(path string, formData map[string]string, method string) error {
 
 	fmt.Println("Response form server: ", resp.Status)
 	return nil
+}
+
+func getServerURL() (string, error) {
+
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	configFile := filepath.Join(configDir, "pongo", "pongo.cfg")
+
+	print("Opening cfg...")
+
+	file, err := os.OpenFile(configFile, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	serverURL := scanner.Text()
+
+	if len(strings.Split(serverURL, "http")) == 1 {
+		return "", nil
+	}
+
+	return serverURL, nil
+
 }
 
 func main() {
