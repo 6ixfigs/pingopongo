@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/cobra-cli/cmd"
 )
 
 var rootCmd = &cobra.Command{
@@ -228,8 +227,6 @@ func sendCommand(path string, formData map[string]string, method string) error {
 		return err
 	}
 
-	print("Server url: ", serverURL)
-
 	req, err := http.NewRequest(method, serverURL+path, strings.NewReader(form.Encode()))
 	if err != nil {
 		return err
@@ -256,10 +253,8 @@ func getServerURL() (string, error) {
 	}
 
 	configFile := filepath.Join(configDir, "pongo", "pongo.cfg")
-
-	print("Opening cfg...")
-
 	file, err := os.OpenFile(configFile, os.O_RDWR|os.O_CREATE, 0644)
+
 	if err != nil {
 		return "", err
 	}
@@ -269,14 +264,20 @@ func getServerURL() (string, error) {
 	scanner.Scan()
 	serverURL := scanner.Text()
 
-	if len(strings.Split(serverURL, "http")) == 1 {
-		return "", nil
+	if serverURL == "" {
+		fmt.Print("> Please enter base URL of pongo host: ")
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		serverURL = scanner.Text()
+
+		file.Write([]byte(serverURL))
+
+		fmt.Println("Base URL saved at ", configFile)
 	}
 
 	return serverURL, nil
-
 }
 
 func main() {
-	cmd.Execute()
+	Execute()
 }
