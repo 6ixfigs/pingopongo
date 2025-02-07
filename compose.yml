@@ -10,7 +10,7 @@ services:
         condition: service_healthy
     restart: on-failure:3
     volumes:
-      - logs:/var/log/pongo.log
+      - logs:/var/log/pongo
 
   database:
     image: postgres:17
