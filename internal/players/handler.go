@@ -3,6 +3,7 @@ package players
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/6ixfigs/pingypongy/internal/models"
@@ -31,6 +32,7 @@ func (h *Handler) MountRoutes() {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Invalid request.", http.StatusBadRequest)
 		return
 	}
@@ -40,6 +42,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -62,6 +65,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		&l.Name,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
 			return
@@ -77,6 +81,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	_, err = tx.Exec(query, l.ID, username)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err, ok := err.(*pq.Error); ok {
 			if err.Code.Name() == "unique_violation" {
 				http.Error(w, fmt.Sprintf("Player %s already exists on %s leaderboard.", username, name), http.StatusConflict)
@@ -96,6 +101,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		webhooks.Notify(urls, response)
 	}
 
+	log.Print(response)
+
 	w.Write([]byte(response))
 }
 
@@ -105,6 +112,7 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -127,6 +135,7 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 		&l.Name,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
 			return
@@ -154,6 +163,7 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 		&player.CreatedAt,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Player %s does not exist on %s leaderboard.\n", username, name), http.StatusNotFound)
 			return
@@ -190,6 +200,8 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		webhooks.Notify(urls, response)
 	}
+
+	log.Print(response)
 
 	w.Write([]byte(response))
 }

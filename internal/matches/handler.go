@@ -3,6 +3,7 @@ package matches
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"strconv"
@@ -31,6 +32,7 @@ func (h *Handler) MountRoutes() {
 
 func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Invalid request.", http.StatusBadRequest)
 		return
 	}
@@ -41,18 +43,20 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 	score := r.FormValue("score")
 
 	if username1 == username2 {
-		http.Error(w, "Player can't play against himself.", http.StatusInternalServerError)
+		http.Error(w, "Player can't play against himself.", http.StatusBadRequest)
 		return
 	}
 
 	matchScore, err := parseScore(score)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, fmt.Sprintf("Invalid score: %s.\n", err.Error()), http.StatusBadRequest)
 		return
 	}
 
 	tx, err := h.db.Begin()
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -75,6 +79,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		&leaderboard.Name,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
 			return
@@ -102,6 +107,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		&player1.CreatedAt,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Player %s does not exist on %s leaderboard.\n", username1, name), http.StatusNotFound)
 			return
@@ -125,6 +131,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		&player2.CreatedAt,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Player %s does not exist on %s leaderboard.\n", username2, name), http.StatusNotFound)
 			return
@@ -185,6 +192,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		player1.ID,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -200,6 +208,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		player2.ID,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -216,6 +225,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		score,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -239,8 +249,11 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 
 	urls, err := webhooks.All(h.db, name)
 	if err == nil {
+		log.Printf("err: %v\n", err)
 		webhooks.Notify(urls, response)
 	}
+
+	log.Print(response)
 
 	w.Write([]byte(response))
 }

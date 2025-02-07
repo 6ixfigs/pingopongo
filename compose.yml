@@ -1,14 +1,16 @@
-name: pingypongy
+name: pongo 
 
 services:
   app:
     build: .
     ports:
-    - "8080:8080"
+      - "8080:8080"
     depends_on:
       database:
         condition: service_healthy
     restart: on-failure:3
+    volumes:
+      - logs:/var/log/pongo
 
   database:
     image: postgres:17
@@ -39,3 +41,4 @@ services:
 
 volumes:
   data:
+  logs:

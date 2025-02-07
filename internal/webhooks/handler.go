@@ -3,7 +3,9 @@ package webhooks
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -31,6 +33,7 @@ func (h *Handler) MountRoutes() {
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Invalid request.", http.StatusBadRequest)
 		return
 	}
@@ -40,6 +43,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -62,6 +66,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		&l.Name,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
 			return
@@ -76,11 +81,14 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	`
 	_, err = tx.Exec(query, l.ID, url)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
 	response := fmt.Sprintf("Registered new webhook on leaderboard %s: %s\n", name, url)
+
+	log.Print(response)
 
 	w.Write([]byte(response))
 }
@@ -90,6 +98,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	webhooks, err := All(h.db, name)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
 			return
@@ -102,7 +111,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if len(webhooks) > 0 {
 		response = strings.Join(webhooks, "\n") + "\n"
 	} else {
-		response = "No webhooks registered."
+		response = "No webhooks registered.\n"
 	}
 
 	w.Write([]byte(response))
@@ -113,6 +122,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
@@ -135,6 +145,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		&l.Name,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		if err == sql.ErrNoRows {
 			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
 			return
@@ -149,30 +160,48 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	`
 	_, err = tx.Exec(query, l.ID)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
 	response := fmt.Sprintf("Delete all webhooks on leaderboard: %s\n", name)
 
+	log.Print(response)
+
 	w.Write([]byte(response))
 }
 
 func Notify(webhooks []string, message string) {
-	payload := []byte(fmt.Sprintf(`{ "text": "%s"}`, message))
+	type payload struct {
+		Text string `json:"text"`
+	}
+
+	p, err := json.Marshal(payload{message})
+	if err != nil {
+		log.Printf("err: %v\n", err)
+	}
+
 	for _, webhook := range webhooks {
-		req, err := http.NewRequest(http.MethodPost, webhook, bytes.NewBuffer(payload))
+		req, err := http.NewRequest(http.MethodPost, webhook, bytes.NewReader(p))
 		if err != nil {
+			log.Printf("err: %v\n", err)
 			continue
 		}
 
-		http.DefaultClient.Do(req)
+		if _, err := http.DefaultClient.Do(req); err != nil {
+			log.Printf("Unable to notify webhook %s", webhook)
+			continue
+		}
+
+		log.Printf("Notified %s", webhook)
 	}
 }
 
 func All(db *sql.DB, leaderboard string) ([]string, error) {
 	tx, err := db.Begin()
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		return nil, err
 	}
 	defer func() {
@@ -193,6 +222,7 @@ func All(db *sql.DB, leaderboard string) ([]string, error) {
 		&l.Name,
 	)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		return nil, err
 	}
 
@@ -203,6 +233,7 @@ func All(db *sql.DB, leaderboard string) ([]string, error) {
 
 	rows, err := tx.Query(query, l.ID)
 	if err != nil {
+		log.Printf("err: %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -211,12 +242,14 @@ func All(db *sql.DB, leaderboard string) ([]string, error) {
 	for rows.Next() {
 		var url string
 		if err := rows.Scan(&url); err != nil {
+			log.Printf("err: %v\n", err)
 			return nil, err
 		}
 		webhooks = append(webhooks, url)
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("err: %v\n", err)
 		return nil, err
 	}
 
