@@ -150,7 +150,7 @@ var listWebhooksCmd = &cobra.Command{
 	Short:                 "List all webhooks registered to the specified leaderboard.",
 	Args:                  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		path := fmt.Sprintf("/leaderboards/%s", args[0])
+		path := fmt.Sprintf("/leaderboards/%s/webhooks", args[0])
 		return sendCommand(path, nil, http.MethodGet)
 	},
 }
