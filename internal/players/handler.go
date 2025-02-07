@@ -9,6 +9,7 @@ import (
 	"github.com/6ixfigs/pingypongy/internal/webhooks"
 	"github.com/go-chi/chi/v5"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/lib/pq"
 )
 
 type Handler struct {
@@ -30,7 +31,7 @@ func (h *Handler) MountRoutes() {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Invalid request.", http.StatusBadRequest)
 		return
 	}
 
@@ -39,20 +40,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 	defer func() {
 		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-
-		err = tx.Commit()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			tx.Rollback()
+		} else {
+			tx.Commit()
 		}
 	}()
 
@@ -67,7 +62,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		&l.Name,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -78,7 +77,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	_, err = tx.Exec(query, l.ID, username)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err, ok := err.(*pq.Error); ok {
+			if err.Code.Name() == "unique_violation" {
+				http.Error(w, fmt.Sprintf("Player %s already exists on %s leaderboard.", username, name), http.StatusConflict)
+				return
+			}
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -98,20 +105,14 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 	defer func() {
 		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		}
-
-		err = tx.Commit()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			tx.Rollback()
+		} else {
+			tx.Commit()
 		}
 	}()
 
@@ -125,12 +126,19 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 		&l.ID,
 		&l.Name,
 	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
+	}
 
 	query = `
 	SELECT * FROM players
 	WHERE leaderboard_id = $1 AND username = $2
 	`
-
 	player := &models.Player{}
 	err = tx.QueryRow(query, l.ID, username).Scan(
 		&player.ID,
@@ -146,7 +154,11 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 		&player.CreatedAt,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Player %s does not exist on %s leaderboard.\n", username, name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
