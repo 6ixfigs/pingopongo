@@ -31,7 +31,7 @@ func (h *Handler) MountRoutes() {
 
 func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Invalid request.", http.StatusBadRequest)
 		return
 	}
 
@@ -41,32 +41,32 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 	score := r.FormValue("score")
 
 	if username1 == username2 {
-		http.Error(w, "player can't play against himself", http.StatusInternalServerError)
+		http.Error(w, "Player can't play against himself.", http.StatusInternalServerError)
 		return
 	}
 
 	matchScore, err := parseScore(score)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Invalid score: %s.\n", err.Error()), http.StatusBadRequest)
 		return
 	}
 
 	tx, err := h.db.Begin()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 	defer func() {
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 				return
 			}
 		}
 
 		err = tx.Commit()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		}
 	}()
 
@@ -81,7 +81,11 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		&leaderboard.Name,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -104,7 +108,11 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		&player1.CreatedAt,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Player %s does not exist on %s leaderboard.\n", username1, name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -123,7 +131,11 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		&player2.CreatedAt,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Player %s does not exist on %s leaderboard.\n", username2, name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -179,7 +191,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		player1.ID,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -194,7 +206,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		player2.ID,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -210,7 +222,7 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		score,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -241,23 +253,23 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 
 func parseScore(score string) (*models.MatchScore, error) {
 	if !strings.Contains(score, "-") {
-		return nil, fmt.Errorf("match score %s needs to have '-' separator", score)
+		return nil, fmt.Errorf("missing '-'")
 	}
 
 	splitScore := strings.Split(score, "-")
 
 	if len(splitScore) != 2 {
-		return nil, fmt.Errorf("match invalid score format: %s", score)
+		return nil, fmt.Errorf("wrong format")
 	}
 
 	p1Score, err := strconv.Atoi(splitScore[0])
 	if err != nil {
-		return nil, fmt.Errorf("player1 score needs to be a number")
+		return nil, fmt.Errorf("player1 score is not a number")
 	}
 
 	p2Score, err := strconv.Atoi(splitScore[1])
 	if err != nil {
-		return nil, fmt.Errorf("player2 score needs to be a number")
+		return nil, fmt.Errorf("player2 score is not a number")
 	}
 
 	return &models.MatchScore{

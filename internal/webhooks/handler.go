@@ -31,7 +31,7 @@ func (h *Handler) MountRoutes() {
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Invalid request.", http.StatusBadRequest)
 		return
 	}
 
@@ -40,20 +40,20 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 	defer func() {
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 				return
 			}
 		}
 
 		err = tx.Commit()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		}
 	}()
 
@@ -67,15 +67,22 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		&l.ID,
 		&l.Name,
 	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
+	}
 
 	query = `
 	INSERT INTO webhooks (leaderboard_id, url)
 	VALUES ($1, $2)
 	`
-
 	_, err = tx.Exec(query, l.ID, url)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -89,11 +96,20 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	webhooks, err := All(h.db, name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
-	response := strings.Join(webhooks, "\n") + "\n"
+	var response string
+	if len(webhooks) > 0 {
+		response = strings.Join(webhooks, "\n") + "\n"
+	} else {
+		response = "No webhooks registered."
+	}
 
 	w.Write([]byte(response))
 }
@@ -103,20 +119,20 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := h.db.Begin()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 	defer func() {
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 				return
 			}
 		}
 
 		err = tx.Commit()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		}
 	}()
 
@@ -131,17 +147,21 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		&l.Name,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			http.Error(w, fmt.Sprintf("Leaderboard %s does not exist.\n", name), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+		return
 	}
 
 	query = `
 	DELETE FROM webhooks
 	WHERE leaderboard_id = $1
 	`
-
 	_, err = tx.Exec(query, l.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		return
 	}
 
@@ -179,7 +199,6 @@ func All(db *sql.DB, leaderboard string) ([]string, error) {
 	SELECT id, name FROM leaderboards
 	WHERE name = $1
 	`
-
 	l := &models.Leaderboard{}
 	err = tx.QueryRow(query, leaderboard).Scan(
 		&l.ID,
