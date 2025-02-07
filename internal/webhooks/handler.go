@@ -102,7 +102,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if len(webhooks) > 0 {
 		response = strings.Join(webhooks, "\n") + "\n"
 	} else {
-		response = "No webhooks registered."
+		response = "No webhooks registered.\n"
 	}
 
 	w.Write([]byte(response))
