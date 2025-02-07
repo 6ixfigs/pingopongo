@@ -149,7 +149,7 @@ var webhooksDelete = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		leaderboard := args[0]
 
-		fmt.Printf("\n> Are you sure you want to delete all webhooks from '%s'? (y/n)\t", leaderboard)
+		fmt.Printf("\n> Are you sure you want to delete all webhooks from '%s' (y/n)? ", leaderboard)
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
 		if err != nil {
@@ -258,7 +258,7 @@ func getServerURL() (string, error) {
 	serverURL := scanner.Text()
 
 	if serverURL == "" {
-		fmt.Print("> Please enter base URL of pongo host: ")
+		fmt.Print("Please enter base URL of pongo host: ")
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		serverURL = scanner.Text()
