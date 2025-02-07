@@ -247,11 +247,13 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 		result.P2EloDiff,
 	)
 
-	urls, err := webhooks.All(h.db, name)
-	if err == nil {
-		log.Printf("err: %v\n", err)
-		webhooks.Notify(urls, response)
-	}
+	go func() {
+		urls, err := webhooks.All(h.db, name)
+		if err == nil {
+			log.Printf("err: %v\n", err)
+			webhooks.Notify(urls, response)
+		}
+	}()
 
 	log.Print(response)
 

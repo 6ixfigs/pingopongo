@@ -96,10 +96,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	response := fmt.Sprintf("Created player on leaderboard %s: %s\n", name, username)
 
-	urls, err := webhooks.All(h.db, name)
-	if err == nil {
-		webhooks.Notify(urls, response)
-	}
+	go func() {
+		urls, err := webhooks.All(h.db, name)
+		if err == nil {
+			webhooks.Notify(urls, response)
+		}
+	}()
 
 	log.Print(response)
 
@@ -196,10 +198,12 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 
 	response := fmt.Sprintf("%s's Stats:\n```\n%s\n```\n", player.Username, t.Render())
 
-	urls, err := webhooks.All(h.db, name)
-	if err == nil {
-		webhooks.Notify(urls, response)
-	}
+	go func() {
+		urls, err := webhooks.All(h.db, name)
+		if err == nil {
+			webhooks.Notify(urls, response)
+		}
+	}()
 
 	log.Print(response)
 
