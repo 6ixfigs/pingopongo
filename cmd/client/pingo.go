@@ -6,6 +6,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,16 +17,16 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "pongo",
+	Use:   "pingo",
 	Short: "Client application for sending request to a ping-pong match tracking server.",
-	Long: `Pongo is a command-line tool which helps users send data to ping-pong match tracking servers.
+	Long: `pingo is a command-line tool which helps users send data to ping-pong match tracking servers.
 The server parses commands and forwards them to webhooks specified in the command-line.
 For example:
 
-	pongo create-leaderboard <leaderboard-name>
-	pongo register-webhook <leaderboard-name> <another-url> (optional)
-	pongo create-player <leaderboard-name> <username>
-	pongo record <leaderboard-name> <player1> <player2> <score>`,
+	pingo create-leaderboard <leaderboard-name>
+	pingo register-webhook <leaderboard-name> <another-url> (optional)
+	pingo create-player <leaderboard-name> <username>
+	pingo record <leaderboard-name> <player1> <player2> <score>`,
 }
 
 func Execute() {
@@ -40,7 +41,7 @@ var createLeaderboardCmd = &cobra.Command{
 	Aliases:               []string{"cl"},
 	Short:                 "Creates a new leaderboard group for players to join.",
 	Long:                  "Makes a new group for players to join into. Every leaderboard has it's own ranking.\nPlayers can be created inside multiple leaderboards with the same name.",
-	Example:               "  pongo create-leaderboard MyLeaderboard\n  pongo cl MyLeaderboard",
+	Example:               "  pingo create-leaderboard MyLeaderboard\n  pingo cl MyLeaderboard",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -55,7 +56,7 @@ var createPlayerCmd = &cobra.Command{
 	Aliases:               []string{"cp", "new-player"},
 	Short:                 "Creates a new player inside the specified leaderboard.",
 	Long:                  `Creates a player with <username> and registers it inside the <leaderboard-name> leaderboard.`,
-	Example:               "  pongo create-player MyLeaderboard zoran-milanovic\n  pongo cp MyLeaderboard zoran-milanovic",
+	Example:               "  pingo create-player MyLeaderboard zoran-milanovic\n  pingo cp MyLeaderboard zoran-milanovic",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -71,7 +72,7 @@ var deleteWebhooksCmd = &cobra.Command{
 	Short:   "Deletes all webhooks registered to the specified leaderboard.",
 	Long: `Deletes all registered webhooks from the specified leaderboard.
 	This action cannot be undone. You will be prompted an 'Are you sure?' before completion.`,
-	Example:               "\tpongo delete-webhooks leaderboard\n\tpongo dw leaderboard",
+	Example:               "\tpingo delete-webhooks leaderboard\n\tpingo dw leaderboard",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -97,7 +98,7 @@ var registerWebhookCmd = &cobra.Command{
 	Use:                   "register-webhook <leaderboard-name> <webhook-url>",
 	Short:                 "Adds a webhook-url to the specified leaderboard.",
 	Aliases:               []string{"rw", "reg"},
-	Example:               "  pongo register-webhook MyLeaderboard https://slack-webhook-url\n  pongo rw MyLeaderboard https://discord-webhook-url",
+	Example:               "  pingo register-webhook MyLeaderboard https://slack-webhook-url\n  pingo rw MyLeaderboard https://discord-webhook-url",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -110,14 +111,14 @@ var registerWebhookCmd = &cobra.Command{
 var exampleCmd = &cobra.Command{
 	Use:     "example",
 	Aliases: []string{"e", "ex"},
-	Short:   "Example usage of the pongo CLI app.",
-	Example: `This is how you would use pongo to record a match between two new players.
+	Short:   "Example usage of the pingo CLI app.",
+	Example: `This is how you would use pingo to record a match between two new players.
 
-	pongo create-leaderboard pongers
-	pongo register-webhook https://another_webhook (optional)
-	pongo create-player zoran-primorac
-	pongo create-player mile-kitic
-	pongo register pongers zoran-primorac mile-kitic 7-0
+	pingo create-leaderboard pongers
+	pingo register-webhook https://another_webhook (optional)
+	pingo create-player zoran-primorac
+	pingo create-player mile-kitic
+	pingo register pongers zoran-primorac mile-kitic 7-0
 
 If you had previously created a leaderboard and registered a webhook to it, you may skip the first 2 commands.
 Also, creating players is unnecessary if they were previously created.`,
@@ -132,7 +133,7 @@ var leaderboardCmd = &cobra.Command{
 	Aliases:               []string{"l"},
 	Short:                 "Displays the ranking inside the specified leaderboard.",
 	Long:                  `Shows the top 15 players and their scores in the given leaderboard.`,
-	Example:               "  pongo leaderboard pongers\n  pongo l pongers",
+	Example:               "  pingo leaderboard pongers\n  pingo l pongers",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -145,11 +146,11 @@ var listWebhooksCmd = &cobra.Command{
 	Use:                   "list-webhooks <leaderboard-name>",
 	Aliases:               []string{"lw", "list", "webhooks", "hooks"},
 	DisableFlagsInUseLine: true,
-	Example:               "pongo list-webhooks MyLeaderboard",
+	Example:               "pingo list-webhooks MyLeaderboard",
 	Short:                 "List all webhooks registered to the specified leaderboard.",
 	Args:                  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		path := fmt.Sprintf("/leaderboards/%s", args[0])
+		path := fmt.Sprintf("/leaderboards/%s/webhooks", args[0])
 		return sendCommand(path, nil, http.MethodGet)
 	},
 }
@@ -159,7 +160,7 @@ var recordCmd = &cobra.Command{
 	Aliases:               []string{"r", "rec"},
 	Short:                 "Records a match between two players.",
 	Long:                  `Stores match data. The score should be in the format 'player1_sets_won-player2_sets_won'`,
-	Example:               "  pongo record CroPongClub zoran-milanovic dragan-primorac 21-0\n  pongo r pongers marcel vux 1-1",
+	Example:               "  pingo record CroPongClub zoran-milanovic dragan-primorac 21-0\n  pingo r pongers marcel vux 1-1",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -174,7 +175,7 @@ var statsCmd = &cobra.Command{
 	Aliases:               []string{"s"},
 	Short:                 "Displays user's stats inside the given leaderboard.",
 	Long:                  `Dispays user's games won, win percentage, winning streak and more.`,
-	Example:               "  pongo stats MyLeaderboard marcel-muslija\n  pongo s MyLeaderboard luka-bikota",
+	Example:               "  pingo stats MyLeaderboard marcel-muslija\n  pingo s MyLeaderboard luka-bikota",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -187,7 +188,7 @@ func init() {
 	rootCmd.Flags().BoolP("help", "h", false, "This is a client app for recording ping pong matches.")
 
 	rootCmd.AddCommand(recordCmd)
-	recordCmd.Flags().BoolP("help", "h", false, "Record a match between two players. Run 'pongo example' to see detailed instructions.")
+	recordCmd.Flags().BoolP("help", "h", false, "Record a match between two players. Run 'pingo example' to see detailed instructions.")
 
 	rootCmd.AddCommand(createLeaderboardCmd)
 	createLeaderboardCmd.Flags().BoolP("help", "h", false, "Creates a new leaderboard and registers a webhook-url.")
@@ -203,7 +204,7 @@ func init() {
 	registerWebhookCmd.Flags().BoolP("help", "h", false, "Register a new webhook-url for the specified leaderboard.")
 
 	rootCmd.AddCommand(exampleCmd)
-	exampleCmd.Flags().BoolP("help", "h", false, "Displays detailed instructions for the pongo CLI app.")
+	exampleCmd.Flags().BoolP("help", "h", false, "Displays detailed instructions for the pingo CLI app.")
 
 	rootCmd.AddCommand(leaderboardCmd)
 	leaderboardCmd.Flags().BoolP("help", "h", false, "Display the ranking from the specified leaderboard.")
@@ -241,7 +242,12 @@ func sendCommand(path string, formData map[string]string, method string) error {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("Response form server: ", resp.Status)
+	text, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n%s", resp.Status, string(text))
 	return nil
 }
 
@@ -252,7 +258,7 @@ func getServerURL() (string, error) {
 		return "", err
 	}
 
-	configFile := filepath.Join(configDir, "pongo", "pongo.cfg")
+	configFile := filepath.Join(configDir, "pingo.cfg")
 	file, err := os.OpenFile(configFile, os.O_RDWR|os.O_CREATE, 0644)
 
 	if err != nil {

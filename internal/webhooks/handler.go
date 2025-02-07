@@ -165,7 +165,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := fmt.Sprintf("Delete all webhooks on leaderboard: %s\n", name)
+	response := fmt.Sprintf("Deleted all webhooks on leaderboard: %s\n", name)
 
 	log.Print(response)
 
