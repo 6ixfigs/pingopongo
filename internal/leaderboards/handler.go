@@ -176,10 +176,12 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 
 	response := fmt.Sprintf("Leaderboard %s:\n```\n%s\n```\n", l.Name, t.Render())
 
-	urls, err := webhooks.All(h.db, name)
-	if err == nil {
-		webhooks.Notify(urls, response)
-	}
+	go func() {
+		urls, err := webhooks.All(h.db, name)
+		if err == nil {
+			webhooks.Notify(urls, response)
+		}
+	}()
 
 	w.Write([]byte(response))
 }
