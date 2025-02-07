@@ -6,7 +6,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -242,7 +242,7 @@ func sendCommand(path string, formData map[string]string, method string) error {
 	}
 	defer resp.Body.Close()
 
-	text, err := ioutil.ReadAll(resp.Body)
+	text, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
