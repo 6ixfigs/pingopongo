@@ -6,6 +6,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -241,7 +242,12 @@ func sendCommand(path string, formData map[string]string, method string) error {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("Response form server: ", resp.Status)
+	text, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n%s", resp.Status, string(text))
 	return nil
 }
 
@@ -252,7 +258,7 @@ func getServerURL() (string, error) {
 		return "", err
 	}
 
-	configFile := filepath.Join(configDir, "pingo", "pingo.cfg")
+	configFile := filepath.Join(configDir, "pingo.cfg")
 	file, err := os.OpenFile(configFile, os.O_RDWR|os.O_CREATE, 0644)
 
 	if err != nil {
