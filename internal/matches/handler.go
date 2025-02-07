@@ -58,15 +58,9 @@ func (h *Handler) Record(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() {
 		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				http.Error(w, "Something went wrong.", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		err = tx.Commit()
-		if err != nil {
-			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
+			tx.Rollback()
+		} else {
+			tx.Commit()
 		}
 	}()
 
