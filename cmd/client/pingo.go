@@ -17,8 +17,9 @@ import (
 )
 
 var pingo = &cobra.Command{
-	Use:   "pingo",
-	Short: "CLI for interacting with the Pongo server",
+	Use:          "pingo",
+	Short:        "CLI for interacting with the Pongo server",
+	SilenceUsage: true,
 }
 
 var version = &cobra.Command{
