@@ -19,7 +19,7 @@ git clone https://github.com/6ixfigs/pingopongo.git
 
 2. Navigate to the repository directory on your file system.
 
-3. Setup `.env` based on `.env.example`.
+3. Setup `.env` based on [.env.template](.env.template).
 
 4. Build and start the services using `docker compose`.
 
