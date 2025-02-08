@@ -99,4 +99,4 @@ This project is maintained on a best-effort basis. If you encounter an issue or 
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [GNU GPL v3 License](LICENSE.md)
+By contributing, you agree that your contributions will be licensed under the [GNU GPL v3 License](LICENSE.md).
