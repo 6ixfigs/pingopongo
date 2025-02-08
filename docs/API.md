@@ -16,6 +16,12 @@
 name=unique-leaderboard-name
 ```
 
+## Retrieve the Leaderboard
+
+**Path:** `/leaderboards/{leaderboard_name}`
+
+**Method:** `GET`
+
 ## Register a Webhook on a Leaderboard
 
 **Path:** `/leaderboards/{leaderboard_name}/webhooks`
@@ -59,6 +65,13 @@ url=https://example.com/webhook-endpoint
 ```x-www-form-urlencoded
 username=player_username
 ```
+
+## Retrieve Player Stats
+
+**Path:** `/leaderboards/{leaderboard_name}/players/{username}`
+
+**Method:** `GET`
+
 ## Record a Match Result
 
 **Path:** `/leaderboards/{leaderboard_name}/matches`
@@ -74,16 +87,4 @@ username=player_username
 ```x-www-form-urlencoded
 player1=username1&player2=username2&score=2-1
 ```
-
-## Retrieve the Leaderboard
-
-**Path:** `/leaderboards/{leaderboard_name}`
-
-**Method:** `GET`
-
-## Retrieve Player Stats
-
-**Path:** `/leaderboards/{leaderboard_name}/players/{username}`
-
-**Method:** `GET`
 

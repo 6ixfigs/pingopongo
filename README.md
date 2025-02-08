@@ -1,64 +1,89 @@
-# PingyPongy
+# Pingo-Pongo 🏓
 
-PingyPongy is an open-source application for tracking table tennis scores, integrated with any platform (like Slack, Discord, MS Teams).
+Pingo-Pongo is a tool for tracking ping pong scores, player stats and leaderboards. It also supports registering webhooks on leaderboards, enabling members to receive notifications about match results and leaderboard changes.
 
-## Core Features
+- **API**: `pongo` - Manage scores, leaderboards, players, and webhooks programatically.
+- **CLI**: `pingo` - Interact with the API from the command line.
 
-### Match Recording
+## Installation
 
-**Description:** Record a match result by specifying the players and the final game outcome.
+### CLI (`pingo`)
 
-**Command:** `pongo record <leaderboard-name> <player1> <player2> <player1-score> - <player2-score>`
+1. Download the latest binary from the [Releases](https://github.com/6ixfigs/pingopongo/releases) page.
+2. Make the binary executable:
 
-**Example:**
-
-```
-pongo record marc vux 3-1
-```
-
-**Response:**
-
-```
-Match recorded successfully:
-marc vs vux
-🎉 Winner: marc (3-1 in sets)
+```bash
+chmod +x pingo
 ```
 
-### Leaderboard
+3. Move the binary to a directory in your `PATH` (Optional):
 
-**Description:** Display the current leaderboard.
-
-**Command:** `pongo leaderboard <leaderboard-name>`
-
-**Response:**
-
-```
-🏓 Current Leaderboard:
-Rank | Player   | Won | Lost | Drawn | Played | Win Ratio
--------------------------------------------------
-1    | John     | 5   | 1    | 0     | 6      | 83.33%
-2    | Jane     | 4   | 2    | 0     | 6      | 66.67%
-3    | Bob      | 3   | 3    | 0     | 6      | 50.00%
-4    | Alice    | 1   | 5    | 0     | 6      | 16.67%
+```bash
+mv pingo /usr/local/bin/
 ```
 
-### Player Stats
+4. Verify the installation:
 
-**Description:** View individual player stats like win/loss ratio, matches won/lost, etc.
-
-**Command:** `pongo stats <player>`
-
-**Example:** `pongo stats marc`
-
-**Response:**
-
+```bash
+pingo version
 ```
-Stats for marc:
-- Matches Played: 6
-- Matches Won: 5
-- Matches Lost: 1
-- Games Won: 11
-- Games Lost: 5
-- Win Ratio: 83.33%
-- Current Streak: 4 Wins
+
+### API (`pongo`)
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/6ixfigs/pingopongo.git
+cd pingopongo
 ```
+
+2. Configure `.env` based on `.env.example`.
+
+3. Start the services using `docker compose` or `make`:
+
+```bash
+docker compose up -d --build # or: make up
+```
+
+4. Apply database migrations:
+
+```bash
+docker compose --profile tools run --rm migrate up # or: make migrate-up
+```
+
+## CLI Usage
+
+The `pingo` CLI allows you to interact with the Pongo API from the command line.
+
+```bash
+$ pingo
+CLI for interacting with the Pongo server
+
+Usage:
+  pingo [command]
+
+Available Commands:
+  help        Help about any command
+  leaderboard Create or retrieve leaderboards
+  player      Create a player or retrieve stats
+  record      Record a match between two players
+  version     Print Pingo version number
+  webhooks    Manage webhooks
+
+Flags:
+  -h, --help   help for pingo
+
+Use "pingo [command] --help" for more information about a command.
+```
+
+## API Usage
+
+The `pongo` API provides endpoints for managing scores, players, leaderboards and webhooks. Refer to the [API Documentation](docs/API.md) for details.
+
+## Contributing
+
+We welcome contributions! Please read the [Contribution Guidelines] to get started.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE.md) for details.
