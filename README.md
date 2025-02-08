@@ -82,7 +82,7 @@ The `pongo` API provides endpoints for managing scores, players, leaderboards an
 
 ## Contributing
 
-We welcome contributions! Please read the [Contribution Guidelines] to get started.
+We welcome contributions! Please read the [Contribution Guidelines](CONTRIBUTING.md) to get started.
 
 ## License
 
