@@ -1,6 +1,6 @@
-# Contributing to Pingo Pongo
+# Contributing to Pingo-Pongo
 
-Thank you for your interest in contributing to Ping Pong Tracker! Whether you’re fixing a bug, adding a feature, or improving documentation, your contributions are welcome.
+Thank you for your interest in contributing to Pingo-Pongo! Whether you’re fixing a bug, adding a feature, or improving documentation, your contributions are welcome.
 
 ## Getting Started
 
