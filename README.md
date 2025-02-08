@@ -86,4 +86,4 @@ We welcome contributions! Please read the [Contribution Guidelines] to get start
 
 ## License
 
-This project is licensed under the GNU GPL v3 License. See [LICENSE](LICENSE.md) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE.md) for details.
