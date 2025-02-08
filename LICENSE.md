@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2025 Marcel Muslija
+
 Copyright (c) 2025 Dino Smirčić
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
