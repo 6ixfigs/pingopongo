@@ -37,7 +37,7 @@ git clone https://github.com/6ixfigs/pingopongo.git
 cd pingopongo
 ```
 
-2. Configure `.env` based on `.env.example`.
+2. Configure `.env` based on `.env.template`.
 
 3. Start the services using `docker compose` or `make`:
 
