@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Pingo-Pongo! Whether you’re fix
 
 ### Prerequisites
 
-- [Go](https://golang.org/) (version 1.20 or higher).
+- [Go](https://golang.org/) (version 1.23.4 or higher).
 - [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/).
 
 ### Setup  
@@ -99,4 +99,4 @@ This project is maintained on a best-effort basis. If you encounter an issue or 
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [GNU GPL v3 License](LICENSE.md).
+By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE.md).
