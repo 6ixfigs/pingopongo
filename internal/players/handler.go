@@ -185,10 +185,10 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 
 	t.AppendRow(table.Row{
 		player.Username,
-		matchesPlayed,
 		player.MatchesWon,
-		player.MatchesLost,
 		player.MatchesDrawn,
+		player.MatchesLost,
+		matchesPlayed,
 		player.TotalGamesWon,
 		player.TotalGamesLost,
 		fmt.Sprintf("%.2f%%", winRatio),
